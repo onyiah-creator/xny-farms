@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600" role="img" aria-label="ASHE Honey product image placeholder">
+  <rect width="800" height="600" fill="#f6e7c1"/>
+  <g transform="translate(400,290)">
+    <path d="M-90 -140 h180 v40 l-20 20 v190 a70 70 0 0 1 -140 0 v-190 l-20 -20 z" fill="#d4a017" stroke="#b8860b" stroke-width="6"/>
+    <rect x="-70" y="-40" width="140" height="90" rx="10" fill="#faf6ee" opacity="0.9"/>
+    <text x="0" y="0" text-anchor="middle" font-family="Georgia, serif" font-size="26" fill="#5a4632" font-weight="bold">ASHE</text>
+    <text x="0" y="30" text-anchor="middle" font-family="Georgia, serif" font-size="18" fill="#5a4632">HONEY</text>
+    <path d="M-20 -160 q20 -30 40 0" fill="none" stroke="#b8860b" stroke-width="6"/>
+  </g>
+  <text x="400" y="560" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#b8860b" opacity="0.8">[ Replace with ASHE Honey photo ]</text>
+</svg>

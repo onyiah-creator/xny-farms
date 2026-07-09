@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Contact — XNY Farms Limited</title>
+  <meta name="description" content="Contact XNY Farms Limited. Find our Nigerian office address, phone, email and send us a message about retail or wholesale enquiries." />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container">
+      <nav class="nav" aria-label="Primary">
+        <a href="index.html" class="brand" aria-label="XNY Farms Limited home">
+          <span class="brand__mark">X</span>
+          <span class="brand__name">XNY Farms<small>Limited &middot; Nigeria</small></span>
+        </a>
+        <button class="nav__toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="primary-menu"><span></span></button>
+        <ul class="nav__links" id="primary-menu">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="products.html">Products</a></li>
+          <li><a href="about.html">About</a></li>
+          <li><a href="wholesale.html">Wholesale</a></li>
+          <li><a href="contact.html">Contact</a></li>
+          <li class="nav__cta"><a href="wholesale.html" class="btn btn--primary">Wholesale Enquiry</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <section class="page-hero">
+    <div class="container">
+      <p class="eyebrow" style="color:var(--amber-400)">Contact Us</p>
+      <h1>We&rsquo;d love to hear from you</h1>
+      <p>Questions about our products, an order or a wholesale supply arrangement? Reach us using the details below or send a message and our team will respond promptly.</p>
+    </div>
+  </section>
+
+  <section class="section section--cream">
+    <div class="container grid grid--2" style="align-items:start">
+
+      <!-- Contact details -->
+      <div>
+        <p class="eyebrow">Reach Us Directly</p>
+        <h2>Company Contact Details</h2>
+        <ul class="info-list">
+          <li>
+            <span class="info-ic">&#128205;</span>
+            <span><strong>Office Address</strong>[ADDRESS PLACEHOLDER — full Nigerian office/registered address]<br />Nigeria</span>
+          </li>
+          <li>
+            <span class="info-ic">&#128222;</span>
+            <span><strong>Phone</strong><a href="tel:REPLACE">[PHONE PLACEHOLDER]</a></span>
+          </li>
+          <li>
+            <span class="info-ic">&#9993;</span>
+            <span><strong>Email</strong><a href="mailto:REPLACE_WITH_EMAIL@example.com">[EMAIL PLACEHOLDER]</a></span>
+          </li>
+          <li>
+            <span class="info-ic">&#128336;</span>
+            <span><strong>Business Hours</strong>[HOURS PLACEHOLDER — e.g. Mon–Fri, 9:00am–5:00pm WAT]</span>
+          </li>
+        </ul>
+
+        <h3 style="margin-top:1.5rem">Find Us</h3>
+        <!-- Google Map — placeholder centred on Lagos, Nigeria.
+             Replace the src with an embed for your real office location
+             (Google Maps → Share → Embed a map → copy the iframe src). -->
+        <div class="map-embed">
+          <iframe
+            title="XNY Farms Limited location (placeholder — Lagos, Nigeria)"
+            src="https://www.google.com/maps?q=Lagos,Nigeria&output=embed"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+            allowfullscreen></iframe>
+        </div>
+        <p class="form-note">Map shows a placeholder Lagos location. Replace the embed with your exact office coordinates before going live.</p>
+      </div>
+
+      <!-- Contact form -->
+      <div class="form-card">
+        <h2 style="font-size:1.4rem">Send Us a Message</h2>
+        <p class="lead" style="font-size:1rem">Fill in the form and we&rsquo;ll get back to you as soon as we can.</p>
+        <!--
+          FORM WIRING: same as the wholesale form.
+          Set data-form-endpoint to your Formspree URL to go live;
+          otherwise data-mailto opens a pre-filled email draft.
+        -->
+        <form data-xny-form
+              action="#REPLACE_WITH_FORMSPREE_ENDPOINT"
+              method="POST"
+              data-form-endpoint="#REPLACE_WITH_FORMSPREE_ENDPOINT"
+              data-mailto="REPLACE_WITH_EMAIL@example.com"
+              data-subject="Contact enquiry — XNY Farms website">
+          <div class="form-grid">
+            <div class="field">
+              <label for="c-name">Full name <span class="req">*</span></label>
+              <input id="c-name" name="name" data-label="Name" type="text" required autocomplete="name" />
+            </div>
+            <div class="field">
+              <label for="c-company">Company <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+              <input id="c-company" name="company" data-label="Company" type="text" autocomplete="organization" />
+            </div>
+            <div class="field">
+              <label for="c-email">Email <span class="req">*</span></label>
+              <input id="c-email" name="email" data-label="Email" type="email" required autocomplete="email" />
+            </div>
+            <div class="field">
+              <label for="c-phone">Phone <span class="req">*</span></label>
+              <input id="c-phone" name="phone" data-label="Phone" type="tel" required autocomplete="tel" />
+            </div>
+            <div class="field field--full">
+              <label for="c-product">Product interest</label>
+              <select id="c-product" name="product_interest" data-label="Product interest">
+                <option value="">Select a topic…</option>
+                <option>ASHE Honey</option>
+                <option>Palm Oil</option>
+                <option>Agricultural Produce</option>
+                <option>Value-Added Products</option>
+                <option>Wholesale / Bulk supply</option>
+                <option>General enquiry</option>
+              </select>
+            </div>
+            <div class="field field--full">
+              <label for="c-message">Message <span class="req">*</span></label>
+              <textarea id="c-message" name="message" data-label="Message" required placeholder="How can we help you?"></textarea>
+            </div>
+          </div>
+          <div style="margin-top:1.2rem">
+            <button type="submit" class="btn btn--green">Send Message</button>
+          </div>
+          <p class="form-status" role="status" aria-live="polite"></p>
+          <p class="form-note">By submitting this form you agree to our <a href="privacy-policy.html">Privacy Policy</a> and <a href="ndpr-notice.html">NDPR Notice</a>. We&rsquo;ll only use your details to respond to your enquiry.</p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="index.html" class="brand" aria-label="XNY Farms Limited home">
+            <span class="brand__mark">X</span>
+            <span class="brand__name" style="color:#fff">XNY Farms<small>Limited &middot; Nigeria</small></span>
+          </a>
+          <p style="margin-top:1rem">Sourcing and supplying pure honey, palm oil and quality agricultural produce from Nigerian farms &mdash; for retail and wholesale buyers.</p>
+          <p style="font-size:.85rem;color:#9aa384">CAC Registration No: <strong style="color:#d9dcc9">[CAC NUMBER PLACEHOLDER]</strong></p>
+        </div>
+        <div class="footer-col">
+          <h4>Explore</h4>
+          <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="products.html">Products</a></li>
+            <li><a href="about.html">About Us</a></li>
+            <li><a href="wholesale.html">Wholesale</a></li>
+            <li><a href="contact.html">Contact</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Policies</h4>
+          <ul>
+            <li><a href="privacy-policy.html">Privacy Policy</a></li>
+            <li><a href="refund-policy.html">Refund Policy</a></li>
+            <li><a href="terms.html">Terms &amp; Conditions</a></li>
+            <li><a href="ndpr-notice.html">NDPR Notice</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <ul>
+            <li>&#128205; [ADDRESS PLACEHOLDER], Nigeria</li>
+            <li>&#128222; [PHONE PLACEHOLDER]</li>
+            <li>&#9993; [EMAIL PLACEHOLDER]</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-legal">
+        <span>&copy; <span data-year>2026</span> XNY Farms Limited. All rights reserved.</span>
+        <span>Registered in Nigeria &middot; RC [CAC NUMBER PLACEHOLDER]</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

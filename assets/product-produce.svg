@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600" role="img" aria-label="Agricultural produce image placeholder">
+  <rect width="800" height="600" fill="#e6efdd"/>
+  <g transform="translate(400,300)">
+    <path d="M-160 60 q160 -70 320 0 l-30 90 q-130 40 -260 0 z" fill="#8a5a2b" stroke="#5a4632" stroke-width="5"/>
+    <circle cx="-90" cy="30" r="46" fill="#c0392b"/>
+    <circle cx="0" cy="10" r="52" fill="#e67e22"/>
+    <circle cx="95" cy="30" r="46" fill="#4a7c2f"/>
+    <ellipse cx="40" cy="-40" rx="30" ry="46" fill="#d4a017"/>
+    <path d="M-40 -30 q10 -50 40 -70 q-6 40 -30 74 z" fill="#3a6b1e"/>
+  </g>
+  <text x="400" y="560" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#3a6b1e" opacity="0.8">[ Replace with Agricultural Produce photo ]</text>
+</svg>

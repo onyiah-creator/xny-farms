@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600" role="img" aria-label="Palm oil product image placeholder">
+  <rect width="800" height="600" fill="#fbe3c2"/>
+  <g transform="translate(400,300)">
+    <path d="M-70 -150 h140 l-14 40 v210 a56 56 0 0 1 -112 0 v-210 z" fill="#e8641c" stroke="#b8460b" stroke-width="6"/>
+    <rect x="-56" y="-30" width="112" height="80" rx="8" fill="#faf6ee" opacity="0.92"/>
+    <text x="0" y="10" text-anchor="middle" font-family="Georgia, serif" font-size="20" fill="#5a4632" font-weight="bold">PALM OIL</text>
+    <ellipse cx="0" cy="-150" rx="18" ry="10" fill="#b8460b"/>
+  </g>
+  <g transform="translate(150,140)" fill="#3a6b1e">
+    <ellipse cx="0" cy="0" rx="16" ry="26"/>
+    <ellipse cx="26" cy="6" rx="16" ry="26"/>
+    <ellipse cx="-26" cy="6" rx="16" ry="26"/>
+  </g>
+  <text x="400" y="560" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#b8460b" opacity="0.8">[ Replace with Palm Oil photo ]</text>
+</svg>

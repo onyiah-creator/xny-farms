@@ -1,0 +1,13 @@
+# Cloudflare Pages configuration for XNY Farms Limited.
+#
+# This is a STATIC site — plain HTML/CSS/JS with NO build step.
+# You do not strictly need this file to deploy: in the Cloudflare dashboard
+# just set Framework preset = None, Build command = (empty), and
+# Build output directory = / (the repo root).
+#
+# It is provided so you can also deploy from the CLI:
+#   npx wrangler pages deploy . --project-name=xny-farms
+
+name = "xny-farms"
+pages_build_output_dir = "."
+compatibility_date = "2025-01-01"

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600" role="img" aria-label="XNY Farms operations image placeholder">
+  <defs>
+    <linearGradient id="s" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#dbeccb"/><stop offset="1" stop-color="#b9d3a2"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#s)"/>
+  <path d="M0 380 Q200 340 400 370 T800 360 V600 H0 Z" fill="#4a7c2f"/>
+  <path d="M0 440 Q220 410 440 440 T800 430 V600 H0 Z" fill="#2d5016"/>
+  <g fill="#5a4632">
+    <rect x="300" y="270" width="200" height="130" rx="6"/>
+    <path d="M290 270 L400 210 L510 270 Z" fill="#8a5a2b"/>
+    <rect x="360" y="320" width="80" height="80" fill="#d4a017"/>
+  </g>
+  <text x="400" y="560" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#2d5016" opacity="0.85">[ Replace with farm / operations photo ]</text>
+</svg>

@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Update the host below to your live domain before launch.
+Sitemap: https://REPLACE_WITH_DOMAIN/sitemap.xml

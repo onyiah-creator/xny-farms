@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wholesale &amp; Bulk Supply — XNY Farms Limited</title>
+  <meta name="description" content="Bulk and wholesale supply of honey, palm oil and agricultural produce for distributors, retailers, food businesses and institutions across Nigeria." />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container">
+      <nav class="nav" aria-label="Primary">
+        <a href="index.html" class="brand" aria-label="XNY Farms Limited home">
+          <span class="brand__mark">X</span>
+          <span class="brand__name">XNY Farms<small>Limited &middot; Nigeria</small></span>
+        </a>
+        <button class="nav__toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="primary-menu"><span></span></button>
+        <ul class="nav__links" id="primary-menu">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="products.html">Products</a></li>
+          <li><a href="about.html">About</a></li>
+          <li><a href="wholesale.html">Wholesale</a></li>
+          <li><a href="contact.html">Contact</a></li>
+          <li class="nav__cta"><a href="wholesale.html" class="btn btn--primary">Wholesale Enquiry</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <section class="page-hero">
+    <div class="container">
+      <p class="eyebrow" style="color:var(--amber-400)">Wholesale &amp; B2B</p>
+      <h1>Bulk supply, built for your business</h1>
+      <p>XNY Farms supplies honey, palm oil and agricultural produce in bulk to distributors, retailers, food manufacturers, hospitality businesses and institutions across Nigeria. Tell us what you need and we&rsquo;ll prepare a tailored quote.</p>
+    </div>
+  </section>
+
+  <!-- Value props -->
+  <section class="section section--white">
+    <div class="container">
+      <div class="grid grid--3">
+        <div class="feature">
+          <div class="feature__icon">&#128666;</div>
+          <h3>Reliable Volumes</h3>
+          <p>Consistent bulk quantities for recurring orders &mdash; from cartons and kegs to drums and container loads, matched to your demand.</p>
+        </div>
+        <div class="feature">
+          <div class="feature__icon">&#129534;</div>
+          <h3>Quality Assurance</h3>
+          <p>Careful sourcing and handling on every batch, so the product your customers receive is consistent order after order.</p>
+        </div>
+        <div class="feature">
+          <div class="feature__icon">&#129309;</div>
+          <h3>Flexible Terms</h3>
+          <p>Distributor and repeat-buyer pricing available. We work with you on volumes, packaging and delivery arrangements.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MOQ / how it works -->
+  <section class="section section--cream">
+    <div class="container grid grid--2" style="align-items:start">
+      <div>
+        <p class="eyebrow">How Wholesale Works</p>
+        <h2>From enquiry to delivery</h2>
+        <ol class="stack" style="padding-left:1.1rem">
+          <li><strong>Send your enquiry.</strong> Use the form with your product interest and estimated volumes.</li>
+          <li><strong>Receive a quote.</strong> Our team confirms availability, pack sizes and pricing for your order.</li>
+          <li><strong>Confirm &amp; supply.</strong> We agree terms, packaging and delivery, then fulfil your order.</li>
+          <li><strong>Reorder easily.</strong> Set up a recurring supply arrangement for ongoing demand.</li>
+        </ol>
+        <div class="placeholder-note">
+          <strong>Minimum order quantities (MOQ):</strong> [MOQ PLACEHOLDER &mdash; specify your minimum order per product, e.g. &ldquo;Honey from 20L, Palm Oil from 1 drum (200L), Produce from 1 tonne.&rdquo; Replace with your real terms.]
+        </div>
+        <p><strong>Prefer to talk first?</strong> See all contact options on our <a href="contact.html">Contact page</a>.</p>
+      </div>
+
+      <!-- Inquiry form -->
+      <div class="form-card">
+        <h2 style="font-size:1.4rem">Request a Wholesale Quote</h2>
+        <p class="lead" style="font-size:1rem">Complete the form and our B2B team will get back to you.</p>
+        <!--
+          FORM WIRING:
+          - To go live, set data-form-endpoint to your Formspree (or similar) URL,
+            e.g. https://formspree.io/f/yourid  — the form will POST there.
+          - Until then, data-mailto is used to open a pre-filled email draft.
+            Replace REPLACE_WITH_EMAIL below with your real inbox.
+        -->
+        <form data-xny-form
+              action="#REPLACE_WITH_FORMSPREE_ENDPOINT"
+              method="POST"
+              data-form-endpoint="#REPLACE_WITH_FORMSPREE_ENDPOINT"
+              data-mailto="REPLACE_WITH_EMAIL@example.com"
+              data-subject="Wholesale enquiry — XNY Farms website">
+          <div class="form-grid">
+            <div class="field">
+              <label for="w-name">Full name <span class="req">*</span></label>
+              <input id="w-name" name="name" data-label="Name" type="text" required autocomplete="name" />
+            </div>
+            <div class="field">
+              <label for="w-company">Company</label>
+              <input id="w-company" name="company" data-label="Company" type="text" autocomplete="organization" />
+            </div>
+            <div class="field">
+              <label for="w-email">Email <span class="req">*</span></label>
+              <input id="w-email" name="email" data-label="Email" type="email" required autocomplete="email" />
+            </div>
+            <div class="field">
+              <label for="w-phone">Phone <span class="req">*</span></label>
+              <input id="w-phone" name="phone" data-label="Phone" type="tel" required autocomplete="tel" />
+            </div>
+            <div class="field field--full">
+              <label for="w-product">Product interest</label>
+              <select id="w-product" name="product_interest" data-label="Product interest">
+                <option value="">Select a product…</option>
+                <option>ASHE Honey</option>
+                <option>Palm Oil</option>
+                <option>Agricultural Produce</option>
+                <option>Value-Added Products (when available)</option>
+                <option>Multiple / Not sure yet</option>
+              </select>
+            </div>
+            <div class="field field--full">
+              <label for="w-message">Message / estimated volumes <span class="req">*</span></label>
+              <textarea id="w-message" name="message" data-label="Message" required placeholder="Tell us your product, estimated quantities, delivery location and how often you'd order."></textarea>
+            </div>
+          </div>
+          <div style="margin-top:1.2rem">
+            <button type="submit" class="btn btn--green">Send Wholesale Enquiry</button>
+          </div>
+          <p class="form-status" role="status" aria-live="polite"></p>
+          <p class="form-note">By submitting this form you agree to our <a href="privacy-policy.html">Privacy Policy</a> and <a href="ndpr-notice.html">NDPR Notice</a>. We&rsquo;ll only use your details to respond to your enquiry.</p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="index.html" class="brand" aria-label="XNY Farms Limited home">
+            <span class="brand__mark">X</span>
+            <span class="brand__name" style="color:#fff">XNY Farms<small>Limited &middot; Nigeria</small></span>
+          </a>
+          <p style="margin-top:1rem">Sourcing and supplying pure honey, palm oil and quality agricultural produce from Nigerian farms &mdash; for retail and wholesale buyers.</p>
+          <p style="font-size:.85rem;color:#9aa384">CAC Registration No: <strong style="color:#d9dcc9">[CAC NUMBER PLACEHOLDER]</strong></p>
+        </div>
+        <div class="footer-col">
+          <h4>Explore</h4>
+          <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="products.html">Products</a></li>
+            <li><a href="about.html">About Us</a></li>
+            <li><a href="wholesale.html">Wholesale</a></li>
+            <li><a href="contact.html">Contact</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Policies</h4>
+          <ul>
+            <li><a href="privacy-policy.html">Privacy Policy</a></li>
+            <li><a href="refund-policy.html">Refund Policy</a></li>
+            <li><a href="terms.html">Terms &amp; Conditions</a></li>
+            <li><a href="ndpr-notice.html">NDPR Notice</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <ul>
+            <li>&#128205; [ADDRESS PLACEHOLDER], Nigeria</li>
+            <li>&#128222; [PHONE PLACEHOLDER]</li>
+            <li>&#9993; [EMAIL PLACEHOLDER]</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-legal">
+        <span>&copy; <span data-year>2026</span> XNY Farms Limited. All rights reserved.</span>
+        <span>Registered in Nigeria &middot; RC [CAC NUMBER PLACEHOLDER]</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
