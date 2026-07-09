@@ -6,33 +6,34 @@
    ========================================================= */
 
 :root {
-  /* Brand palette */
-  --green-900: #1f3d13;
-  --green-800: #2d5016;
-  --green-700: #3a6b1e;
-  --green-600: #4a7c2f;
-  --green-100: #e6efdd;
+  /* Brand palette — sampled from the XNY Farms logo (deep forest green
+     from "FARMS", mustard gold from "XNY", near-black from the linework) */
+  --green-900: #0b3a24;
+  --green-800: #0f4a2e;
+  --green-700: #146c43;
+  --green-600: #1d8a56;
+  --green-100: #e1f2e8;
 
-  --amber-600: #b8860b;
-  --amber-500: #d4a017;
-  --amber-400: #e6b422;
-  --amber-100: #f6e7c1;
+  --amber-600: #a8890d;
+  --amber-500: #d4af16;
+  --amber-400: #e6c640;
+  --amber-100: #fbf1c7;
 
   --cream: #faf6ee;
   --cream-dark: #f2ead9;
   --brown: #5a4632;
-  --ink: #2b2b26;
+  --ink: #171717;
   --muted: #6b6558;
   --white: #ffffff;
   --line: #e3dbc9;
 
-  --shadow-sm: 0 1px 3px rgba(43, 43, 38, 0.08);
-  --shadow-md: 0 6px 20px rgba(43, 43, 38, 0.12);
+  --shadow-sm: 0 1px 3px rgba(23, 23, 23, 0.08);
+  --shadow-md: 0 6px 20px rgba(23, 23, 23, 0.12);
   --radius: 12px;
   --radius-sm: 8px;
   --maxw: 1160px;
 
-  --font-head: "Georgia", "Times New Roman", serif;
+  --font-head: "Baloo 2", "Poppins", "Segoe UI", sans-serif;
   --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
 }
@@ -126,6 +127,7 @@ p { margin: 0 0 1rem; }
 .brand__name { font-family: var(--font-head); font-weight: 700; font-size: 1.2rem; color: var(--green-900); line-height: 1.05; }
 .brand__name small { display: block; font-family: var(--font-body); font-weight: 600; font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--amber-600); }
 .brand:hover { text-decoration: none; }
+.brand__logo { height: 46px; width: auto; display: block; }
 
 .nav__links { display: flex; align-items: center; gap: .35rem; list-style: none; margin: 0; padding: 0; }
 .nav__links a {

@@ -86,6 +86,15 @@ this list before going live or submitting to Flutterwave:
 ### Product & site photos (`/assets`)
 - [x] `ashe-honey-50cl.png` / `ashe-honey-1l.png` → real ASHE Honey bottle
       photos, in place.
+- [ ] **`xny-logo.svg` — verify against your real logo file.** This was
+      hand-built from a visual read of the logo (colors and letterforms
+      were not sampled from the actual source file — the upload didn't
+      come through as a readable file in that session). Compare it side
+      by side with your real `xny_logo_trans.jpg` and swap in an exported
+      version of the real file if the mark, colors, or type don't match
+      closely enough. It's referenced in the header on all 9 pages via
+      `class="brand__logo"` — replacing the file in place (same name) is
+      the easiest way to update it without touching the HTML.
 - [ ] Replace the remaining SVG placeholders with **real photos** (keep the
       same file names to avoid editing HTML, or update the `<img src>`
       references):
