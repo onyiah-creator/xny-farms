@@ -6,31 +6,34 @@
    ========================================================= */
 
 :root {
-  /* Brand palette — sampled from the updated XNY Farms logo (deep forest
-     green from "FARMS" / the mark's outline, lime-yellow from "XNY",
-     leaf-green accent from the sprout). This logo has no black linework,
-     so body text uses a green-tinted charcoal instead of pure black. */
-  --green-900: #0a3120;
-  --green-800: #0e3f27;
-  --green-700: #12492c;
-  --green-600: #4c9a2a;
-  --green-100: #e4f1e1;
+  /* Brand palette — anchored to 4 exact hex values confirmed by the client
+     from the real logo file: #06552A (dark forest green), #8CC10F
+     (lime/chartreuse accent), #DAD905 (gold/yellow), #0B4124 (dark green
+     text). --green-700, --green-600, --amber-500 and --ink below are
+     those exact confirmed values; the remaining shades in each scale
+     (900/800/100, amber-600/400/100) are computed tints/shades derived
+     from them for gradients, hover states and light backgrounds. */
+  --green-900: #043d1e;
+  --green-800: #054826;
+  --green-700: #06552a;
+  --green-600: #8cc10f;
+  --green-100: #e7f3d9;
 
-  --amber-600: #a7ae1e;
-  --amber-500: #d3dc30;
-  --amber-400: #dee566;
-  --amber-100: #f6f8dd;
+  --amber-600: #b0af04;
+  --amber-500: #dad905;
+  --amber-400: #e7e650;
+  --amber-100: #fafad8;
 
   --cream: #faf6ee;
   --cream-dark: #f2ead9;
   --brown: #5a4632;
-  --ink: #1a2620;
-  --muted: #62685f;
+  --ink: #0b4124;
+  --muted: #5c6b60;
   --white: #ffffff;
   --line: #e3dbc9;
 
-  --shadow-sm: 0 1px 3px rgba(26, 38, 32, 0.08);
-  --shadow-md: 0 6px 20px rgba(26, 38, 32, 0.12);
+  --shadow-sm: 0 1px 3px rgba(11, 65, 36, 0.08);
+  --shadow-md: 0 6px 20px rgba(11, 65, 36, 0.12);
   --radius: 12px;
   --radius-sm: 8px;
   --maxw: 1160px;
@@ -96,7 +99,7 @@ p { margin: 0 0 1rem; }
 .btn--primary { background: var(--amber-500); color: var(--green-900); }
 .btn--primary:hover { background: var(--amber-400); }
 .btn--green { background: var(--green-700); color: var(--white); }
-.btn--green:hover { background: var(--green-600); }
+.btn--green:hover { background: var(--green-800); }
 .btn--ghost { background: transparent; border-color: var(--cream); color: var(--cream); }
 .btn--ghost:hover { background: rgba(255,255,255,.12); }
 .btn--outline { background: transparent; border-color: var(--green-700); color: var(--green-700); }
@@ -121,7 +124,7 @@ p { margin: 0 0 1rem; }
 .brand { display: flex; align-items: center; gap: .7rem; }
 .brand__mark {
   width: 42px; height: 42px; border-radius: 10px;
-  background: linear-gradient(135deg, var(--green-700), var(--green-600));
+  background: linear-gradient(135deg, var(--green-800), var(--green-700));
   display: grid; place-items: center;
   color: var(--amber-400); font-family: var(--font-head); font-weight: 700; font-size: 1.35rem;
   flex: 0 0 auto;
@@ -129,7 +132,7 @@ p { margin: 0 0 1rem; }
 .brand__name { font-family: var(--font-head); font-weight: 700; font-size: 1.2rem; color: var(--green-900); line-height: 1.05; }
 .brand__name small { display: block; font-family: var(--font-body); font-weight: 600; font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--amber-600); }
 .brand:hover { text-decoration: none; }
-.brand__logo { height: 46px; width: auto; display: block; }
+.brand__logo { height: 52px; max-height: 52px; width: auto; display: block; }
 
 .nav__links { display: flex; align-items: center; gap: .35rem; list-style: none; margin: 0; padding: 0; }
 .nav__links a {
@@ -302,7 +305,7 @@ p { margin: 0 0 1rem; }
 
 /* ---------- Callout / CTA band ---------- */
 .cta-band {
-  background: linear-gradient(135deg, var(--green-800), var(--green-600));
+  background: linear-gradient(135deg, var(--green-900), var(--green-700));
   color: var(--cream);
   border-radius: var(--radius);
   padding: 2.6rem;

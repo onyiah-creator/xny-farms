@@ -86,17 +86,20 @@ this list before going live or submitting to Flutterwave:
 ### Product & site photos (`/assets`)
 - [x] `ashe-honey-50cl.png` / `ashe-honey-1l.png` → real ASHE Honey bottle
       photos, in place.
-- [ ] **`xny-logo.svg` — verify against your real logo file.** This was
-      hand-built from a visual read of the logo (colors and letterforms
-      were not sampled from the actual source file — every attempt to
-      upload `xny_logo_trans.jpg` in this session came through as inline
-      chat content rather than a readable file, including a Google Drive
-      link that this environment's network policy blocks). Compare it
-      side by side with your real logo file and swap in an exported
-      version of it if the mark, colors, or type don't match closely
-      enough. It's referenced in the header on all 9 pages via
-      `class="brand__logo"` — replacing the file in place (same name) is
-      the easiest way to update it without touching the HTML.
+- [ ] **`xny-logo.svg` — still a hand-built recreation, swap for the real
+      file.** The brand colors are exact (confirmed by the client:
+      `#06552A` dark green, `#8CC10F` lime, `#DAD905` gold, `#0B4124`
+      dark green text — see the palette note in `css/styles.css`), but
+      the mark and letterforms are still an approximation, since the
+      actual logo file (`xny-logo.png` / `xny_logo_trans.jpg`) has not
+      successfully landed as a readable upload in any session so far —
+      every attempt (direct paste, a Google Drive link blocked by this
+      environment's network policy) came through as inline chat content
+      instead of a file. It's referenced in the header on all 9 pages via
+      `class="brand__logo"`; swapping in the real file under the same
+      path (`assets/xny-logo.svg`, or update the `<img src>` on all 9
+      pages to a `.png` if the real file is raster) is the only step
+      left to make this pixel-accurate.
 - [ ] Replace the remaining SVG placeholders with **real photos** (keep the
       same file names to avoid editing HTML, or update the `<img src>`
       references):
