@@ -6,29 +6,31 @@
    ========================================================= */
 
 :root {
-  /* Brand palette — sampled from the XNY Farms logo (deep forest green
-     from "FARMS", mustard gold from "XNY", near-black from the linework) */
-  --green-900: #0b3a24;
-  --green-800: #0f4a2e;
-  --green-700: #146c43;
-  --green-600: #1d8a56;
-  --green-100: #e1f2e8;
+  /* Brand palette — sampled from the updated XNY Farms logo (deep forest
+     green from "FARMS" / the mark's outline, lime-yellow from "XNY",
+     leaf-green accent from the sprout). This logo has no black linework,
+     so body text uses a green-tinted charcoal instead of pure black. */
+  --green-900: #0a3120;
+  --green-800: #0e3f27;
+  --green-700: #12492c;
+  --green-600: #4c9a2a;
+  --green-100: #e4f1e1;
 
-  --amber-600: #a8890d;
-  --amber-500: #d4af16;
-  --amber-400: #e6c640;
-  --amber-100: #fbf1c7;
+  --amber-600: #a7ae1e;
+  --amber-500: #d3dc30;
+  --amber-400: #dee566;
+  --amber-100: #f6f8dd;
 
   --cream: #faf6ee;
   --cream-dark: #f2ead9;
   --brown: #5a4632;
-  --ink: #171717;
-  --muted: #6b6558;
+  --ink: #1a2620;
+  --muted: #62685f;
   --white: #ffffff;
   --line: #e3dbc9;
 
-  --shadow-sm: 0 1px 3px rgba(23, 23, 23, 0.08);
-  --shadow-md: 0 6px 20px rgba(23, 23, 23, 0.12);
+  --shadow-sm: 0 1px 3px rgba(26, 38, 32, 0.08);
+  --shadow-md: 0 6px 20px rgba(26, 38, 32, 0.12);
   --radius: 12px;
   --radius-sm: 8px;
   --maxw: 1160px;

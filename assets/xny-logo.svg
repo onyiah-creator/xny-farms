@@ -1,17 +1,23 @@
-<svg viewBox="0 0 900 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="xnyLogoTitle">
+<svg viewBox="0 0 980 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="xnyLogoTitle">
   <title id="xnyLogoTitle">XNY Farms — ...meeting your agricultural needs.</title>
 
-  <!-- Mark: stylized crossed bars ("XY") -->
-  <g>
-    <rect x="-15" y="72" width="210" height="30" rx="15" transform="rotate(-35 90 87)" fill="#ffffff" stroke="#141414" stroke-width="9"/>
-    <rect x="-15" y="72" width="210" height="30" rx="15" transform="rotate(35 90 87)" fill="#ffffff" stroke="#141414" stroke-width="9"/>
-    <rect x="45" y="108" width="120" height="26" rx="13" transform="rotate(55 105 121)" fill="#ffffff" stroke="#141414" stroke-width="9"/>
+  <!-- Mark: "XY" formed by crossed strokes with a leaf sprout accent -->
+  <g fill="none" stroke-linecap="round">
+    <path d="M20 40 L165 165" stroke="#12492C" stroke-width="16"/>
+    <path d="M42 40 L100 92" stroke="#7CB342" stroke-width="10"/>
+    <path d="M165 40 Q205 5 235 40" stroke="#12492C" stroke-width="16" fill="none"/>
+    <path d="M100 92 L20 165 Q10 185 30 195 Q48 202 62 185 L165 40" stroke="#12492C" stroke-width="16"/>
+    <path d="M118 108 L45 200 Q38 214 52 220 Q64 225 74 212 L150 118" stroke="#12492C" stroke-width="16"/>
   </g>
+  <path d="M150 60 Q185 40 200 70 Q170 75 150 60 Z" fill="#8DC63F"/>
+  <path d="M150 60 Q160 90 150 120 Q135 90 150 60 Z" fill="#4C9A2A"/>
 
   <!-- Wordmark -->
-  <text x="222" y="88" font-family="'Baloo 2','Arial Rounded MT Bold',sans-serif" font-weight="800" font-size="76" fill="#D4AF16" stroke="#146C43" stroke-width="3.5" paint-order="stroke" letter-spacing="1">XNY</text>
-  <text x="452" y="88" font-family="'Baloo 2','Arial Rounded MT Bold',sans-serif" font-weight="800" font-size="76" fill="#146C43" letter-spacing="1">FARMS</text>
+  <text x="255" y="150" font-family="'Baloo 2','Arial Rounded MT Bold',sans-serif" font-weight="800" font-size="88" fill="#D3DC30" stroke="#12492C" stroke-width="4" paint-order="stroke" letter-spacing="1">XNY</text>
+  <text x="510" y="150" font-family="'Baloo 2','Arial Rounded MT Bold',sans-serif" font-weight="800" font-size="88" fill="#12492C" letter-spacing="1">FARMS</text>
 
-  <!-- Tagline -->
-  <text x="224" y="135" font-family="'Baloo 2',cursive,sans-serif" font-weight="500" font-style="italic" font-size="28" fill="#141414">...meeting your agricultural needs.</text>
+  <!-- Tagline with flanking accent lines -->
+  <line x1="255" y1="200" x2="300" y2="200" stroke="#4C9A2A" stroke-width="4"/>
+  <text x="315" y="208" font-family="'Baloo 2',cursive,sans-serif" font-weight="500" font-style="italic" font-size="30" fill="#12492C">...meeting your agricultural needs.</text>
+  <line x1="855" y1="200" x2="900" y2="200" stroke="#4C9A2A" stroke-width="4"/>
 </svg>
