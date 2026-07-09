@@ -30,35 +30,27 @@
   }
 
   /* ---- Contact / wholesale form handling ----
-     No backend is wired up yet. Forms carry a data-form-endpoint
-     attribute. When that endpoint is a real Formspree (or similar)
-     URL the form posts normally. Until then we fall back to a
-     mailto: draft so nothing is silently lost, and show a status
-     message. Swap the endpoint in the HTML when ready.            */
+     No backend — these forms work entirely via mailto:. On submit we
+     validate required fields, build a mailto: link from the entered
+     values, and hand off to the user's email client. Nothing is sent
+     over the network by this site. A visible email address is also
+     shown near each form in the HTML as a fallback, in case the
+     visitor's device has no configured email client.                */
   function initForms() {
     var forms = document.querySelectorAll("form[data-xny-form]");
     forms.forEach(function (form) {
       form.addEventListener("submit", function (e) {
-        var status = form.querySelector(".form-status");
-        var endpoint = form.getAttribute("data-form-endpoint") || "";
-
-        // Basic required-field check (native validity as backup)
-        if (!form.checkValidity()) {
-          return; // let the browser surface the messages
-        }
-
-        // If a real endpoint is configured, let it POST normally.
-        if (endpoint && endpoint.indexOf("REPLACE") === -1 && endpoint.charAt(0) !== "#") {
-          if (status) {
-            status.textContent = "Sending your message…";
-            status.style.color = "var(--muted)";
-          }
-          return; // native submit proceeds to the endpoint
-        }
-
-        // ---- Fallback: build a mailto: draft ----
         e.preventDefault();
-        var to = form.getAttribute("data-mailto") || "REPLACE_WITH_EMAIL@example.com";
+        var status = form.querySelector(".form-status");
+
+        // Required-field check (name, email, message at minimum) —
+        // let the browser surface its native validation messages.
+        if (!form.checkValidity()) {
+          form.reportValidity();
+          return;
+        }
+
+        var to = form.getAttribute("data-mailto") || "xnyfarms@gmail.com";
         var subject = form.getAttribute("data-subject") || "Website enquiry — XNY Farms";
         var lines = [];
         form.querySelectorAll("input, select, textarea").forEach(function (el) {

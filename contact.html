@@ -86,16 +86,13 @@
         <h2 style="font-size:1.4rem">Send Us a Message</h2>
         <p class="lead" style="font-size:1rem">Fill in the form and we&rsquo;ll get back to you as soon as we can.</p>
         <!--
-          FORM WIRING: same as the wholesale form.
-          Set data-form-endpoint to your Formspree URL to go live;
-          otherwise data-mailto opens a pre-filled email draft.
+          FORM WIRING: mailto: only, no backend. On submit, js/main.js
+          builds a mailto: link from the field values below and opens
+          the visitor's email client with the message pre-filled.
         -->
         <form data-xny-form
-              action="#REPLACE_WITH_FORMSPREE_ENDPOINT"
-              method="POST"
-              data-form-endpoint="#REPLACE_WITH_FORMSPREE_ENDPOINT"
               data-mailto="xnyfarms@gmail.com"
-              data-subject="Contact enquiry — XNY Farms website">
+              data-subject="Contact Form Submission — XNY Farms">
           <div class="form-grid">
             <div class="field">
               <label for="c-name">Full name <span class="req">*</span></label>
@@ -115,7 +112,7 @@
             </div>
             <div class="field field--full">
               <label for="c-product">Product interest</label>
-              <select id="c-product" name="product_interest" data-label="Product interest">
+              <select id="c-product" name="product_interest" data-label="Product Interest">
                 <option value="">Select a topic…</option>
                 <option>ASHE Honey</option>
                 <option>Palm Oil</option>
@@ -134,6 +131,7 @@
             <button type="submit" class="btn btn--green">Send Message</button>
           </div>
           <p class="form-status" role="status" aria-live="polite"></p>
+          <p class="form-note">This form opens your email app with the message pre-filled. If nothing opens (common on some mobile devices), please email us directly at <a href="mailto:xnyfarms@gmail.com">xnyfarms@gmail.com</a>.</p>
           <p class="form-note">By submitting this form you agree to our <a href="privacy-policy.html">Privacy Policy</a> and <a href="ndpr-notice.html">NDPR Notice</a>. We&rsquo;ll only use your details to respond to your enquiry.</p>
         </form>
       </div>

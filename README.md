@@ -119,17 +119,21 @@ this list before going live or submitting to Flutterwave:
       (Google Maps → **Share** → **Embed a map** → copy the `src`).
 
 ### Forms (`contact.html` + `wholesale.html`)
-- [x] `data-mailto` is set to the real inbox (`xnyfarms@gmail.com`) on both
-      forms, so the `mailto:` fallback already works.
-- [ ] **Wire up form submission properly.** Both forms currently fall back to
-      opening a pre-filled email draft (`mailto:`) rather than posting
-      anywhere. To collect submissions properly:
-      1. Create a form endpoint (e.g. a free [Formspree](https://formspree.io)
-         form) and copy its URL, e.g. `https://formspree.io/f/abcdxyz`.
-      2. In each form, set **both** the `action` and the
-         `data-form-endpoint` attributes to that URL.
-      Once `data-form-endpoint` is a real URL (no `REPLACE`/`#`), the form
-      posts to it automatically — no JS changes needed.
+- [x] **Wired up via `mailto:` only, by design — no backend.** Both forms
+      submit to `data-mailto="xnyfarms@gmail.com"` with a page-specific
+      `data-subject` ("Wholesale Inquiry — XNY Farms" / "Contact Form
+      Submission — XNY Farms"). On submit, `js/main.js` validates the
+      required fields, builds a `mailto:` link from the entered values,
+      and opens the visitor's email client — nothing is posted over the
+      network. Each form also shows the inbox address as visible text
+      (`xnyfarms@gmail.com`) as a fallback for devices with no configured
+      email client.
+- [ ] **Optional: switch to a real form backend later.** If you'd rather
+      collect submissions server-side instead of relying on `mailto:`,
+      wire up a service like [Formspree](https://formspree.io) — add an
+      `action`/`method` back to the `<form>` tag pointing at its
+      endpoint, and update the `submit` handler in `js/main.js` to let
+      that POST through instead of intercepting it.
 
 ### Legal pages (`privacy-policy.html`, `refund-policy.html`, `terms.html`, `ndpr-notice.html`)
 - [ ] **Dates** — replace every `[DATE]` (last updated date) on all four pages.

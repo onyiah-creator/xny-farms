@@ -86,17 +86,13 @@
         <h2 style="font-size:1.4rem">Request a Wholesale Quote</h2>
         <p class="lead" style="font-size:1rem">Complete the form and our B2B team will get back to you.</p>
         <!--
-          FORM WIRING:
-          - To go live, set data-form-endpoint to your Formspree (or similar) URL,
-            e.g. https://formspree.io/f/yourid  — the form will POST there.
-          - Until then, data-mailto is used to open a pre-filled email draft.
+          FORM WIRING: mailto: only, no backend. On submit, js/main.js
+          builds a mailto: link from the field values below and opens
+          the visitor's email client with the message pre-filled.
         -->
         <form data-xny-form
-              action="#REPLACE_WITH_FORMSPREE_ENDPOINT"
-              method="POST"
-              data-form-endpoint="#REPLACE_WITH_FORMSPREE_ENDPOINT"
               data-mailto="xnyfarms@gmail.com"
-              data-subject="Wholesale enquiry — XNY Farms website">
+              data-subject="Wholesale Inquiry — XNY Farms">
           <div class="form-grid">
             <div class="field">
               <label for="w-name">Full name <span class="req">*</span></label>
@@ -116,7 +112,7 @@
             </div>
             <div class="field field--full">
               <label for="w-product">Product interest</label>
-              <select id="w-product" name="product_interest" data-label="Product interest">
+              <select id="w-product" name="product_interest" data-label="Product Interest">
                 <option value="">Select a product…</option>
                 <option>ASHE Honey</option>
                 <option>Palm Oil</option>
@@ -134,6 +130,7 @@
             <button type="submit" class="btn btn--green">Send Wholesale Enquiry</button>
           </div>
           <p class="form-status" role="status" aria-live="polite"></p>
+          <p class="form-note">This form opens your email app with the message pre-filled. If nothing opens (common on some mobile devices), please email us directly at <a href="mailto:xnyfarms@gmail.com">xnyfarms@gmail.com</a>.</p>
           <p class="form-note">By submitting this form you agree to our <a href="privacy-policy.html">Privacy Policy</a> and <a href="ndpr-notice.html">NDPR Notice</a>. We&rsquo;ll only use your details to respond to your enquiry.</p>
         </form>
       </div>
