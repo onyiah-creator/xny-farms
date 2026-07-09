@@ -54,8 +54,8 @@ project for `[` (or `PLACEHOLDER` / `REPLACE`) to find every spot. Work through
 this list before going live or submitting to Flutterwave:
 
 ### Company identity
-- [ ] **CAC Registration Number** — replace every `[CAC NUMBER PLACEHOLDER]`
-      (appears in footers on all pages, `about.html`, and the legal pages).
+- [x] **CAC Registration Number** — set to `1107007` across footers on all
+      pages, `about.html`, and the legal pages.
 - [ ] **Company history** — `about.html`, the `[PLACEHOLDER — founding story]`
       block. Add the real founding year, founders, location, motivation and
       milestones.
@@ -63,12 +63,13 @@ this list before going live or submitting to Flutterwave:
       to your official wording if you have one.
 
 ### Contact details (appear in footers on every page + `contact.html`)
-- [ ] **Office / registered address** — replace every `[ADDRESS PLACEHOLDER]`.
-- [ ] **Phone number** — replace every `[PHONE PLACEHOLDER]` and the
-      `tel:REPLACE` link in `contact.html`.
-- [ ] **Email address** — replace every `[EMAIL PLACEHOLDER]` and every
-      `REPLACE_WITH_EMAIL@example.com` (in `contact.html`, `wholesale.html`,
-      the form `data-mailto` attributes, and legal pages).
+- [x] **Office / registered address** — set to `41 Babaponmile Street,
+      Onipetesi, Mangoro, Ikeja, Lagos, Nigeria` across all pages.
+- [x] **Phone number** — set to `+234 806 013 8299`, including the
+      `tel:` link in `contact.html`.
+- [x] **Email address** — set to `xnyfarms@gmail.com`, including the
+      `mailto:` link in `contact.html` and the `data-mailto` fallback on the
+      contact and wholesale forms.
 - [ ] **Business hours** — `contact.html`, `[HOURS PLACEHOLDER]`.
 
 ### Products (`products.html`)
@@ -100,13 +101,15 @@ this list before going live or submitting to Flutterwave:
       (Google Maps → **Share** → **Embed a map** → copy the `src`).
 
 ### Forms (`contact.html` + `wholesale.html`)
-- [ ] **Wire up form submission.** Both forms currently fall back to opening a
-      pre-filled email draft (`mailto:`). To collect submissions properly:
+- [x] `data-mailto` is set to the real inbox (`xnyfarms@gmail.com`) on both
+      forms, so the `mailto:` fallback already works.
+- [ ] **Wire up form submission properly.** Both forms currently fall back to
+      opening a pre-filled email draft (`mailto:`) rather than posting
+      anywhere. To collect submissions properly:
       1. Create a form endpoint (e.g. a free [Formspree](https://formspree.io)
          form) and copy its URL, e.g. `https://formspree.io/f/abcdxyz`.
       2. In each form, set **both** the `action` and the
          `data-form-endpoint` attributes to that URL.
-      3. Also set `data-mailto` to your real inbox as a backup.
       Once `data-form-endpoint` is a real URL (no `REPLACE`/`#`), the form
       posts to it automatically — no JS changes needed.
 
