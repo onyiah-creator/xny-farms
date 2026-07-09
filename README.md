@@ -86,20 +86,10 @@ this list before going live or submitting to Flutterwave:
 ### Product & site photos (`/assets`)
 - [x] `ashe-honey-50cl.png` / `ashe-honey-1l.png` → real ASHE Honey bottle
       photos, in place.
-- [ ] **`xny-logo.svg` — still a hand-built recreation, swap for the real
-      file.** The brand colors are exact (confirmed by the client:
-      `#06552A` dark green, `#8CC10F` lime, `#DAD905` gold, `#0B4124`
-      dark green text — see the palette note in `css/styles.css`), but
-      the mark and letterforms are still an approximation, since the
-      actual logo file (`xny-logo.png` / `xny_logo_trans.jpg`) has not
-      successfully landed as a readable upload in any session so far —
-      every attempt (direct paste, a Google Drive link blocked by this
-      environment's network policy) came through as inline chat content
-      instead of a file. It's referenced in the header on all 9 pages via
-      `class="brand__logo"`; swapping in the real file under the same
-      path (`assets/xny-logo.svg`, or update the `<img src>` on all 9
-      pages to a `.png` if the real file is raster) is the only step
-      left to make this pixel-accurate.
+- [x] `xny-logo.png` → real XNY Farms logo file, in place and wired into
+      the header on all 9 pages via `class="brand__logo"`. Brand colors
+      in `css/styles.css` (`#06552A` dark green, `#8CC10F` lime,
+      `#DAD905` gold, `#0B4124` dark green text) match the logo exactly.
 - [ ] Replace the remaining SVG placeholders with **real photos** (keep the
       same file names to avoid editing HTML, or update the `<img src>`
       references):
