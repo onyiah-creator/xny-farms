@@ -33,7 +33,12 @@
      forest-green identity. ~16.3:1 contrast against white/cream
      (WCAG AAA), vs. ~11–12:1 for the previous shade. */
   --ink: #14231a;
-  --muted: #5c6b60;
+  /* Secondary/de-emphasized text (descriptions, form notes, lead
+     paragraphs) — darkened for readability alongside --ink, but kept
+     lighter than --ink so the two-tier hierarchy still reads clearly.
+     ~9.3:1 contrast against white / ~8.6:1 against cream (WCAG AAA),
+     vs. ~5.6:1 / ~5.2:1 for the previous shade (AA, but only just). */
+  --muted: #3d4a42;
   --white: #ffffff;
   --line: #e3dbc9;
 
