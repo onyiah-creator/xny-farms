@@ -121,18 +121,19 @@ p { margin: 0 0 1rem; }
   gap: 1rem;
   padding: .85rem 0;
 }
-.brand { display: flex; align-items: center; gap: .7rem; }
-.brand__mark {
-  width: 42px; height: 42px; border-radius: 10px;
-  background: linear-gradient(135deg, var(--green-800), var(--green-700));
-  display: grid; place-items: center;
-  color: var(--amber-400); font-family: var(--font-head); font-weight: 700; font-size: 1.35rem;
-  flex: 0 0 auto;
-}
-.brand__name { font-family: var(--font-head); font-weight: 700; font-size: 1.2rem; color: var(--green-900); line-height: 1.05; }
-.brand__name small { display: block; font-family: var(--font-body); font-weight: 600; font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--amber-600); }
+.brand { display: flex; align-items: center; gap: .7rem; min-width: 0; flex: 0 1 auto; }
 .brand:hover { text-decoration: none; }
-.brand__logo { height: 52px; max-height: 52px; width: auto; display: block; }
+/* Logo is a wide lockup (1893x831 ≈ 2.28:1) — scale height fluidly between
+   mobile and desktop; width follows automatically to preserve aspect ratio. */
+.brand__logo { height: clamp(36px, 6vw, 56px); width: auto; max-width: 100%; display: block; }
+.footer-brand .brand__logo-wrap {
+  display: inline-block;
+  background: var(--white);
+  border-radius: var(--radius-sm);
+  padding: .4rem .65rem;
+  line-height: 0;
+}
+.footer-brand .brand__logo { height: clamp(26px, 4vw, 40px); }
 
 .nav__links { display: flex; align-items: center; gap: .35rem; list-style: none; margin: 0; padding: 0; }
 .nav__links a {
@@ -340,7 +341,6 @@ p { margin: 0 0 1rem; }
 .site-footer a { color: var(--amber-100); }
 .site-footer a:hover { color: #fff; }
 .footer-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1.2fr; gap: 2rem; }
-.footer-brand .brand__name { color: #fff; }
 .footer-brand p { color: #b9c0a6; font-size: .95rem; }
 .footer-col h4 { color: #fff; font-size: .95rem; letter-spacing: .05em; text-transform: uppercase; margin-bottom: .9rem; }
 .footer-col ul { list-style: none; padding: 0; margin: 0; }
@@ -364,7 +364,11 @@ hr.divider { border: 0; border-top: 1px solid var(--line); margin: 2rem 0; }
   .grid--3 { grid-template-columns: repeat(2, 1fr); }
   .footer-grid { grid-template-columns: 1fr 1fr; }
 }
-@media (max-width: 760px) {
+/* Nav collapses to a hamburger earlier than the other 760px breakpoints
+   below, because the wide logo lockup leaves too little room for the
+   full link list (the "Wholesale Enquiry" button was wrapping onto two
+   lines around 768–800px otherwise). */
+@media (max-width: 860px) {
   .nav__toggle { display: block; }
   .nav__links {
     position: absolute; top: 100%; left: 0; right: 0;
@@ -377,6 +381,8 @@ hr.divider { border: 0; border-top: 1px solid var(--line); margin: 2rem 0; }
   .nav__links.is-open { display: flex; }
   .nav__links a { padding: .75rem .6rem; }
   .nav__cta { margin: .4rem 0 0; text-align: center; }
+}
+@media (max-width: 760px) {
   .hero { padding: 4rem 0; }
   .product-row, .grid--2, .form-grid { grid-template-columns: 1fr; }
   .product-row--flip .product-row__media { order: 0; }
