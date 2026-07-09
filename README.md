@@ -76,16 +76,24 @@ this list before going live or submitting to Flutterwave:
 - [x] **ASHE Honey** — live with real product photos, copy and pricing
       (50cl at &#8358;6,500, 1 Litre at &#8358;12,000) on both `products.html`
       and the homepage featured-products preview.
+- [x] **Palm Oil** — live with real product photos, copy and pricing
+      (50cl at &#8358;700, 1 Litre at &#8358;1,300) on `products.html`. The
+      homepage featured-products preview still shows the `product-palm-oil.svg`
+      placeholder — only ASHE Honey was updated there per instructions;
+      update the Palm Oil homepage card the same way when ready.
 - [ ] **Product descriptions** — replace each `[PRODUCT DESCRIPTION ...]` for
-      Palm Oil, Agricultural Produce and Value-Added Products.
+      Agricultural Produce and Value-Added Products.
 - [ ] **Pack sizes / grades / current produce lines** — replace the `[...]`
       chips under each remaining placeholder product.
-- [ ] **Retail pricing / store links** — add for Palm Oil and Agricultural
-      Produce when ready.
+- [ ] **Retail pricing / store links** — add for Agricultural Produce when
+      ready.
 
 ### Product & site photos (`/assets`)
 - [x] `ashe-honey-50cl.png` / `ashe-honey-1l.png` → real ASHE Honey bottle
       photos, in place.
+- [x] `palm-oil-50cl.png` / `palm-oil-1l.png` → real Palm Oil bottle
+      photos, in place (used on `products.html`; the homepage card still
+      references `product-palm-oil.svg`).
 - [x] `xny-logo.png` → real XNY Farms logo file, in place and wired into
       the header on all 9 pages via `class="brand__logo"`. Brand colors
       in `css/styles.css` (`#06552A` dark green, `#8CC10F` lime,
@@ -93,7 +101,7 @@ this list before going live or submitting to Flutterwave:
 - [ ] Replace the remaining SVG placeholders with **real photos** (keep the
       same file names to avoid editing HTML, or update the `<img src>`
       references):
-  - `product-palm-oil.svg` → Palm Oil photo
+  - `product-palm-oil.svg` → still used on the homepage featured card only
   - `product-produce.svg` → Agricultural produce photo
   - `product-value-added.svg` → keep as "Coming Soon" until the line launches
   - `about-farm.svg` → farm / team / operations photo
