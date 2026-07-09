@@ -27,7 +27,12 @@
   --cream: #faf6ee;
   --cream-dark: #f2ead9;
   --brown: #5a4632;
-  --ink: #0b4124;
+  /* Base body/paragraph text color. Darkened from the logo-exact #0B4124
+     to a deeper green-charcoal for readability — still reads as "dark
+     text" rather than "colored text", while tying into the brand's
+     forest-green identity. ~16.3:1 contrast against white/cream
+     (WCAG AAA), vs. ~11–12:1 for the previous shade. */
+  --ink: #14231a;
   --muted: #5c6b60;
   --white: #ffffff;
   --line: #e3dbc9;
