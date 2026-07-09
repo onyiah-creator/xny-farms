@@ -195,10 +195,13 @@ p { margin: 0 0 1rem; }
 .card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
 .card__media { aspect-ratio: 16 / 10; background: var(--cream-dark); overflow: hidden; }
 .card__media img { width: 100%; height: 100%; object-fit: cover; }
+.card__media--contain { aspect-ratio: 3 / 4; background: #fff; }
+.card__media--contain img { object-fit: contain; padding: 1.25rem; }
 .card__body { padding: 1.25rem 1.25rem 1.4rem; display: flex; flex-direction: column; flex: 1; }
 .card__body h3 { margin-bottom: .35rem; }
 .card__body p { color: var(--muted); font-size: .96rem; }
 .card__footer { margin-top: auto; padding-top: .8rem; }
+.price { font-family: var(--font-head); font-weight: 700; font-size: 1.35rem; color: var(--green-800); margin: .3rem 0 .9rem; }
 
 .badge {
   display: inline-block;

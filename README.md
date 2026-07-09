@@ -73,16 +73,22 @@ this list before going live or submitting to Flutterwave:
 - [ ] **Business hours** — `contact.html`, `[HOURS PLACEHOLDER]`.
 
 ### Products (`products.html`)
+- [x] **ASHE Honey** — live with real product photos, copy and pricing
+      (50cl at &#8358;6,500, 1 Litre at &#8358;12,000) on both `products.html`
+      and the homepage featured-products preview.
 - [ ] **Product descriptions** — replace each `[PRODUCT DESCRIPTION ...]` for
-      ASHE Honey, Palm Oil, Agricultural Produce and Value-Added Products.
+      Palm Oil, Agricultural Produce and Value-Added Products.
 - [ ] **Pack sizes / grades / current produce lines** — replace the `[...]`
-      chips under each product.
-- [ ] **Retail pricing / store links** — add when your sales channel is ready.
+      chips under each remaining placeholder product.
+- [ ] **Retail pricing / store links** — add for Palm Oil and Agricultural
+      Produce when ready.
 
 ### Product & site photos (`/assets`)
-- [ ] Replace the SVG placeholders with **real photos** (keep the same file
-      names to avoid editing HTML, or update the `<img src>` references):
-  - `product-honey.svg` → ASHE Honey photo
+- [x] `ashe-honey-50cl.png` / `ashe-honey-1l.png` → real ASHE Honey bottle
+      photos, in place.
+- [ ] Replace the remaining SVG placeholders with **real photos** (keep the
+      same file names to avoid editing HTML, or update the `<img src>`
+      references):
   - `product-palm-oil.svg` → Palm Oil photo
   - `product-produce.svg` → Agricultural produce photo
   - `product-value-added.svg` → keep as "Coming Soon" until the line launches
