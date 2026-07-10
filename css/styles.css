@@ -136,6 +136,9 @@ p { margin: 0 0 1rem; }
 /* Logo is a wide lockup (1893x831 ≈ 2.28:1) — scale height fluidly between
    mobile and desktop; width follows automatically to preserve aspect ratio. */
 .brand__logo { height: clamp(36px, 6vw, 56px); width: auto; max-width: 100%; display: block; }
+/* Homepage-only: bigger header logo. Scoped to body.home so the other
+   8 pages keep the standard .brand__logo size above untouched. */
+body.home .site-header .brand__logo { height: clamp(48px, 7vw, 72px); }
 .footer-brand .brand__logo-wrap {
   display: inline-block;
   background: var(--white);
