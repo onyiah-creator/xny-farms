@@ -10,7 +10,11 @@
 # Long-cache static assets (they are versioned by content / rarely change)
 /assets/*
   Cache-Control: public, max-age=86400
+
+# Short-cache + forced revalidation for CSS/JS — these are actively
+# iterated on, and a stale edge/browser cache of these specifically was
+# masking deploys for up to 24h under the old max-age=86400 rule.
 /css/*
-  Cache-Control: public, max-age=86400
+  Cache-Control: public, max-age=300, must-revalidate
 /js/*
-  Cache-Control: public, max-age=86400
+  Cache-Control: public, max-age=300, must-revalidate
