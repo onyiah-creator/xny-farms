@@ -225,35 +225,25 @@ p { margin: 0 0 1rem; }
 .card__media { aspect-ratio: 16 / 10; background: var(--cream-dark); overflow: hidden; }
 .card__media img { width: 100%; height: 100%; object-fit: cover; }
 
-/* Portrait product-photo variant (bottles, jars, etc. of varying aspect
-   ratios — not tuned to any one product's proportions). The container
-   gets a DEFINITE height (clamp, not aspect-ratio, not min-height alone)
-   so that max-height: 100% on the image has something real to resolve
-   against — percentage heights only resolve against a definite parent
-   height per spec; min-height alone leaves the parent's height as
-   "auto plus content", so max-height: 100% on the child silently does
-   nothing and the image renders at full natural size instead of being
-   contained. object-fit: contain then guarantees the full photo is
-   always visible within that fixed box, regardless of its native
-   width:height ratio — never cropped, never overflowing. Written as a
-   single higher-specificity selector (.card .card__media--contain) so
-   it can never lose a cascade tie to the base .card__media rule
-   regardless of source order. */
+/* Portrait product-photo variant (bottles, etc.). Source images are now
+   normalized to identical 800x1000 canvases (bottle bottom-aligned,
+   consistent padding on every side), so the container can just use a
+   fixed aspect-ratio matching that canvas instead of the previous
+   clamp()-based height workaround that existed to compensate for
+   4 differently-shaped source photos. object-fit: contain is kept as a
+   safety net (never crops, never overflows) rather than a load-bearing
+   fix. Written as a single higher-specificity selector
+   (.card .card__media--contain) so it can never lose a cascade tie to
+   the base .card__media rule regardless of source order. */
 .card .card__media--contain {
-  aspect-ratio: auto;
-  height: clamp(280px, 42vw, 420px);
+  aspect-ratio: 4 / 5;
   background: #fff;
   padding: 1.25rem;
   box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 .card .card__media--contain img {
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   object-position: center center;
   padding: 0;
