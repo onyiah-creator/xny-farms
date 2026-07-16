@@ -29,7 +29,13 @@ directly to **Cloudflare Pages** (or any static host) as-is.
 ├── js/
 │   └── main.js           Mobile nav, active links, form handling
 ├── assets/               Images (SVG placeholders — swap for real photos)
-│   ├── favicon.svg
+│   ├── favicon.ico
+│   ├── favicon-16.png
+│   ├── favicon-32.png
+│   ├── favicon-48.png
+│   ├── favicon-180.png
+│   ├── favicon-192.png
+│   ├── favicon-512.png
 │   ├── hero-farm.svg
 │   ├── product-honey.svg
 │   ├── product-palm-oil.svg
@@ -106,7 +112,6 @@ this list before going live or submitting to Flutterwave:
   - `product-value-added.svg` → keep as "Coming Soon" until the line launches
   - `about-farm.svg` → farm / team / operations photo
   - `hero-farm.svg` → optional: a real hero background photo
-  - `favicon.svg` → optional: your real logo mark
   > If you switch to `.jpg`/`.png`, update the matching `src="assets/..."`
   > paths (and the CSS `--hero` background in `css/styles.css`).
 
