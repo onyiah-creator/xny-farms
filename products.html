@@ -31,6 +31,7 @@
           <li><a href="about.html">About</a></li>
           <li><a href="wholesale.html">Wholesale</a></li>
           <li><a href="contact.html">Contact</a></li>
+          <li class="nav__cart"><a href="cart.html" class="cart-link" aria-label="View cart"><span aria-hidden="true">&#128722;</span><span class="cart-badge" data-cart-count hidden>0</span></a></li>
           <li class="nav__cta"><a href="wholesale.html" class="btn btn--primary">Wholesale Enquiry</a></li>
         </ul>
       </nav>
@@ -41,7 +42,7 @@
     <div class="container">
       <p class="eyebrow" style="color:var(--amber-400)">Our Products</p>
       <h1>Natural products, sourced with care</h1>
-      <p>Every item in our range is sourced from Nigerian farms and handled to a consistent standard. Products are available for individual retail purchase and for wholesale / bulk supply &mdash; use the enquiry links on each product to reach our team.</p>
+      <p>Every item in our range is sourced from Nigerian farms and handled to a consistent standard. Add items to your cart and check out securely online, or contact our team for wholesale / bulk supply.</p>
     </div>
   </section>
 
@@ -62,7 +63,7 @@
               <h3>ASHE Honey &mdash; 50cl</h3>
               <p>100% pure, raw, unfiltered, and unpasteurized honey. No additives, no added sugar, no preservatives, and rich in nutrients. Product of Nigeria.</p>
               <p class="price">&#8358;6,500</p>
-              <div class="card__footer"><a href="contact.html" class="btn btn--primary">Enquire to Order</a></div>
+              <div class="card__footer"><button type="button" class="btn btn--primary" data-add-to-cart="ashe-honey-50cl">Add to Cart</button></div>
             </div>
           </article>
           <article class="card">
@@ -71,7 +72,7 @@
               <h3>ASHE Honey &mdash; 1 Litre</h3>
               <p>100% pure, raw, unfiltered, and unpasteurized honey. No additives, no added sugar, no preservatives, and rich in nutrients. Product of Nigeria.</p>
               <p class="price">&#8358;12,000</p>
-              <div class="card__footer"><a href="contact.html" class="btn btn--primary">Enquire to Order</a></div>
+              <div class="card__footer"><button type="button" class="btn btn--primary" data-add-to-cart="ashe-honey-1l">Add to Cart</button></div>
             </div>
           </article>
         </div>
@@ -92,7 +93,7 @@
               <h3>Palm Oil &mdash; 50cl</h3>
               <p>100% pure, natural palm oil. No additives, no preservatives, rich in vitamins A &amp; E. Traditionally processed for great taste and quality. Product of Nigeria.</p>
               <p class="price">&#8358;700</p>
-              <div class="card__footer"><a href="contact.html" class="btn btn--primary">Enquire to Order</a></div>
+              <div class="card__footer"><button type="button" class="btn btn--primary" data-add-to-cart="palm-oil-50cl">Add to Cart</button></div>
             </div>
           </article>
           <article class="card">
@@ -101,7 +102,7 @@
               <h3>Palm Oil &mdash; 1 Litre</h3>
               <p>100% pure, natural palm oil. No additives, no preservatives, rich in vitamins A &amp; E. Traditionally processed for great taste and quality. Product of Nigeria.</p>
               <p class="price">&#8358;1,300</p>
-              <div class="card__footer"><a href="contact.html" class="btn btn--primary">Enquire to Order</a></div>
+              <div class="card__footer"><button type="button" class="btn btn--primary" data-add-to-cart="palm-oil-1l">Add to Cart</button></div>
             </div>
           </article>
         </div>
@@ -202,6 +203,7 @@
     </div>
   </footer>
 
+  <script src="js/cart.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

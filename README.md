@@ -24,10 +24,14 @@ directly to **Cloudflare Pages** (or any static host) as-is.
 ├── refund-policy.html    Refund & cancellation policy
 ├── terms.html            Terms & conditions
 ├── ndpr-notice.html      NDPR data privacy notice
+├── cart.html             Cart + checkout (Flutterwave payment)
+├── site.webmanifest      Web app manifest (home-screen / PWA icons)
 ├── css/
 │   └── styles.css        All site styles
 ├── js/
-│   └── main.js           Mobile nav, active links, form handling
+│   ├── main.js           Mobile nav, active links, form handling
+│   ├── cart.js           Cart core (localStorage) + header badge — loaded on every page
+│   └── checkout.js       cart.html only: rendering, delivery totals, Flutterwave checkout
 ├── assets/               Images (SVG placeholders — swap for real photos)
 │   ├── favicon.ico
 │   ├── favicon-16.png
@@ -211,6 +215,84 @@ This site is structured to satisfy a payment provider's business-verification
       contact details and dates — reviewers specifically look for these.
 - [ ] Ensured product photos and pricing reflect what you actually sell.
 - [ ] Wired the contact/wholesale forms to a working inbox or endpoint.
+- [x] **Working B2B checkout portal** — `cart.html` provides a full cart +
+      Flutterwave Inline Checkout flow (see Section 5 below). Add your
+      Flutterwave **public** key to `js/checkout.js` before this satisfies a
+      KYC reviewer asking to see a live payment flow.
 
 Placeholders left in `[BRACKETS]` will be visible to a reviewer — do not submit
 until the checklist above is complete.
+
+---
+
+## 5. Cart, Checkout & Payments (Flutterwave)
+
+`cart.html` implements a client-side cart + checkout using **Flutterwave's
+Inline Checkout JS SDK**, entirely from the browser — there is no backend,
+consistent with the rest of this static site.
+
+### How it works
+- **Cart storage:** `js/cart.js` keeps cart contents (product id, name, size,
+  unit price, quantity) in `localStorage` under the key `xny_cart`, and drives
+  the header cart icon/badge that appears on all 9 pages plus `cart.html`.
+  The product catalog (id → name/size/price/image) lives at the top of that
+  file — keep it in sync with the prices shown on `products.html` /
+  `index.html`.
+- **"Add to Cart" buttons** on `products.html` and the homepage featured cards
+  (ASHE Honey, Palm Oil) use a `data-add-to-cart="<product-id>"` attribute;
+  `js/cart.js` wires them up automatically. "Enquire to Order" was removed
+  from these retail product cards now that a real checkout exists — bulk /
+  wholesale buyers are still served separately via the dedicated
+  **Wholesale Enquiry** flow (nav + `wholesale.html`), linked from a note
+  under each product section on `products.html`.
+- **Delivery fee:** `cart.html` offers a Lagos / Other Nigerian States choice.
+  The flat rates are constants at the top of `js/checkout.js`:
+  ```js
+  var DELIVERY_RATE_LAGOS = 1500; // NGN — placeholder, update once a courier partner is confirmed
+  var DELIVERY_RATE_OTHER = 3500; // NGN — placeholder, update once a courier partner is confirmed
+  ```
+  These are provisional flat rates — update them (and only them) once a real
+  courier partner and zone pricing are confirmed.
+- **Checkout:** after "Proceed to Checkout", the visitor enters name, email,
+  phone and delivery address, then "Pay Now" opens Flutterwave's Inline
+  Checkout modal for the calculated total (subtotal + delivery) in NGN, with
+  a generated `tx_ref` (`xny-<timestamp>`).
+
+### ⚠️ You must add your Flutterwave public key
+`js/checkout.js` ships with a placeholder:
+```js
+var FLUTTERWAVE_PUBLIC_KEY = "YOUR_FLUTTERWAVE_PUBLIC_KEY_HERE";
+```
+Replace this with your real **public** key from the Flutterwave dashboard.
+Until you do, "Pay Now" shows a friendly "online payment isn't configured
+yet" message instead of trying to open the checkout modal — the site stays
+functional, it just won't take real payments.
+
+### Order notification — read this
+This is a static site with **no backend or webhook**, so XNY Farms is **not**
+automatically notified when a payment succeeds. To close that gap, a
+successful Flutterwave callback automatically also opens a pre-filled
+`mailto:` link (same pattern as the contact/wholesale forms) addressed to
+`xnyfarms@gmail.com` with the order details and the Flutterwave `tx_ref`. The
+on-page confirmation also shows a **"Resend Confirmation Email"** button in
+case the visitor's browser didn't open their email client, or they closed the
+tab before it fired.
+
+**The mailto notification is a convenience, not the source of truth.** A
+customer could close their browser before it fires. The real record of
+whether a payment actually succeeded is always the **Flutterwave merchant
+dashboard** (**dashboard.flutterwave.com**) — check it there before
+dispatching any order, don't rely solely on receiving the confirmation email.
+
+### Security — secret key & fraud protection
+- The Flutterwave **secret key must never** be added to this repository or
+  any client-side code (`js/checkout.js` or otherwise). It is only ever
+  meant to be used **server-side**, which this static-site MVP does not
+  implement.
+- **Known limitation:** payment success here is currently trusted from the
+  client-side Flutterwave callback alone — it is **not server-verified**.
+  That's enough to accept real payments and get notified today, but for full
+  fraud protection you should eventually add a small **Cloudflare Pages
+  Function** that calls Flutterwave's **Verify Transaction API** with the
+  secret key, server-side, before treating an order as confirmed. This is a
+  recommended fast-follow, not a blocker for launching checkout today.

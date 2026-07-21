@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Your Cart — XNY Farms Limited</title>
+  <meta name="description" content="Review your cart, choose delivery, and pay securely online for ASHE Honey, palm oil and other XNY Farms products." />
+  <link rel="icon" href="assets/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon-180.png" />
+  <link rel="manifest" href="site.webmanifest" />
+  <meta name="theme-color" content="#06552A" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=2" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container">
+      <nav class="nav" aria-label="Primary">
+        <a href="index.html" class="brand" aria-label="XNY Farms Limited home">
+          <img src="assets/xny-logo.png" alt="XNY Farms — ...meeting your agricultural needs." class="brand__logo" />
+        </a>
+        <button class="nav__toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="primary-menu"><span></span></button>
+        <ul class="nav__links" id="primary-menu">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="products.html">Products</a></li>
+          <li><a href="about.html">About</a></li>
+          <li><a href="wholesale.html">Wholesale</a></li>
+          <li><a href="contact.html">Contact</a></li>
+          <li class="nav__cart"><a href="cart.html" class="cart-link" aria-label="View cart"><span aria-hidden="true">&#128722;</span><span class="cart-badge" data-cart-count hidden>0</span></a></li>
+          <li class="nav__cta"><a href="wholesale.html" class="btn btn--primary">Wholesale Enquiry</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <section class="page-hero">
+    <div class="container">
+      <p class="eyebrow" style="color:var(--amber-400)">Your Order</p>
+      <h1>Cart &amp; Checkout</h1>
+      <p>Review your order, choose delivery, and pay securely online with Flutterwave.</p>
+    </div>
+  </section>
+
+  <section class="section section--white">
+    <div class="container">
+
+      <!-- Empty state -->
+      <div id="cart-empty" class="text-center" style="display:none;padding:2rem 0">
+        <p class="lead mx-auto">Your cart is empty.</p>
+        <a href="products.html" class="btn btn--primary">Browse Products</a>
+      </div>
+
+      <!-- Cart + checkout (shown once the cart has items) -->
+      <div id="cart-content">
+        <div class="cart-layout">
+
+          <!-- Items -->
+          <div>
+            <div class="cart-items-card">
+              <div id="cart-items"><!-- rendered by js/checkout.js --></div>
+            </div>
+          </div>
+
+          <!-- Summary -->
+          <div class="form-card">
+            <h2 style="font-size:1.3rem">Order Summary</h2>
+
+            <div class="cart-line"><span>Subtotal</span><span id="cart-subtotal">&#8358;0</span></div>
+
+            <div class="field" style="margin-top:.6rem">
+              <label>Delivery Location <span class="req">*</span></label>
+              <div class="delivery-options">
+                <label class="delivery-option">
+                  <input type="radio" name="delivery_state" value="lagos" data-delivery-radio />
+                  Lagos &mdash; &#8358;1,500
+                </label>
+                <label class="delivery-option">
+                  <input type="radio" name="delivery_state" value="other" data-delivery-radio />
+                  Other Nigerian States &mdash; &#8358;3,500
+                </label>
+              </div>
+              <p class="form-note" style="margin-top:.5rem">Delivery rates shown are provisional flat rates and may be updated once a courier partner is confirmed.</p>
+            </div>
+
+            <div class="cart-line"><span>Delivery</span><span id="cart-delivery">&#8212;</span></div>
+            <div class="cart-line cart-line--total"><span>Total</span><span id="cart-total">&#8358;0</span></div>
+
+            <button type="button" id="proceed-checkout-btn" class="btn btn--green" style="width:100%;margin-top:1.2rem">Proceed to Checkout</button>
+          </div>
+        </div>
+
+        <!-- Checkout section (revealed by "Proceed to Checkout") -->
+        <div id="checkout-section" style="display:none;margin-top:2.5rem">
+          <h2>Checkout</h2>
+          <div class="form-card">
+            <p class="lead" style="font-size:1rem">Enter your details, then pay securely &mdash; you'll be redirected to Flutterwave's secure payment window.</p>
+            <form id="checkout-form">
+              <div class="form-grid">
+                <div class="field">
+                  <label for="co-name">Full name <span class="req">*</span></label>
+                  <input id="co-name" name="name" type="text" required autocomplete="name" />
+                </div>
+                <div class="field">
+                  <label for="co-email">Email <span class="req">*</span></label>
+                  <input id="co-email" name="email" type="email" required autocomplete="email" />
+                </div>
+                <div class="field">
+                  <label for="co-phone">Phone <span class="req">*</span></label>
+                  <input id="co-phone" name="phone" type="tel" required autocomplete="tel" />
+                </div>
+                <div class="field field--full">
+                  <label for="co-address">Delivery address <span class="req">*</span></label>
+                  <textarea id="co-address" name="address" required placeholder="Street address, city/town, state"></textarea>
+                </div>
+              </div>
+              <p class="form-note">Payment is processed securely by Flutterwave. XNY Farms does not see or store your card details.</p>
+            </form>
+            <button type="button" id="pay-now-btn" class="btn btn--primary" style="margin-top:.8rem">Pay Now &mdash; <span id="pay-now-amount">&#8358;0</span></button>
+            <p id="checkout-status" class="form-status" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+
+        <!-- Order confirmation -->
+        <div id="order-confirmation" style="display:none;margin-top:2.5rem">
+          <div class="confirmation-card">
+            <div class="confirmation-icon">&#9989;</div>
+            <h2>Thank you &mdash; your order has been received</h2>
+            <p>Reference: <span id="confirmation-ref" class="confirmation-ref"></span></p>
+            <p>We've opened your email app with an order confirmation ready to send. Please also send this confirmation email so we can begin processing your order.</p>
+            <button type="button" id="resend-email-btn" class="btn btn--outline">Resend Confirmation Email</button>
+            <p class="form-note" style="margin-top:1.2rem">If nothing opens in your email app, please email us directly at <a href="mailto:xnyfarms@gmail.com">xnyfarms@gmail.com</a> with your order reference above.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="index.html" class="brand" aria-label="XNY Farms Limited home">
+            <span class="brand__logo-wrap"><img src="assets/xny-logo.png" alt="XNY Farms — ...meeting your agricultural needs." class="brand__logo" /></span>
+          </a>
+          <p style="margin-top:1rem">Sourcing and supplying pure honey, palm oil and quality agricultural produce from Nigerian farms &mdash; for retail and wholesale buyers.</p>
+          <p style="font-size:.85rem;color:#9aa384">CAC Registration No: <strong style="color:#d9dcc9">1107007</strong></p>
+        </div>
+        <div class="footer-col">
+          <h4>Explore</h4>
+          <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="products.html">Products</a></li>
+            <li><a href="about.html">About Us</a></li>
+            <li><a href="wholesale.html">Wholesale</a></li>
+            <li><a href="contact.html">Contact</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Policies</h4>
+          <ul>
+            <li><a href="privacy-policy.html">Privacy Policy</a></li>
+            <li><a href="refund-policy.html">Refund Policy</a></li>
+            <li><a href="terms.html">Terms &amp; Conditions</a></li>
+            <li><a href="ndpr-notice.html">NDPR Notice</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <ul>
+            <li>&#128205; 41 Babaponmile Street, Onipetesi, Mangoro, Ikeja, Lagos, Nigeria</li>
+            <li>&#128222; +234 806 013 8299</li>
+            <li>&#9993; xnyfarms@gmail.com</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-legal">
+        <span>&copy; <span data-year>2026</span> XNY Farms Limited. All rights reserved.</span>
+        <span>Registered in Nigeria &middot; RC 1107007</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/cart.js"></script>
+  <script src="https://checkout.flutterwave.com/v3.js"></script>
+  <script src="js/checkout.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
