@@ -30,7 +30,7 @@
   // ---- Flutterwave ----------------------------------------------------
   // Public key only — paste your real Flutterwave PUBLIC key below.
   // Never put the secret key here.
-  var FLUTTERWAVE_PUBLIC_KEY = "YOUR_FLUTTERWAVE_PUBLIC_KEY_HERE";
+  var FLUTTERWAVE_PUBLIC_KEY = "FLWPUBK-a3e668407ea4d1608e40f8bac749ff69-X";
 
   var ORDER_NOTIFICATION_EMAIL = "xnyfarms@gmail.com";
   var DELIVERY_STORAGE_KEY = "xny_delivery_state";
