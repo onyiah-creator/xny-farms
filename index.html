@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=2" />
+  <link rel="stylesheet" href="css/styles.css?v=3" />
 </head>
 <body class="home">
 
@@ -25,14 +25,24 @@
         <a href="index.html" class="brand" aria-label="XNY Farms Limited home">
           <img src="assets/xny-logo.png" alt="XNY Farms — ...meeting your agricultural needs." class="brand__logo" />
         </a>
-        <button class="nav__toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="primary-menu"><span></span></button>
+        <div class="nav__actions">
+          <a href="cart.html" class="cart-link" aria-label="View cart">
+            <svg class="cart-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M2.5 3.5h2.1a1.2 1.2 0 0 1 1.17.95l.43 2.05" />
+              <path d="M6.2 6.5h14.3l-1.55 7.65a1.6 1.6 0 0 1-1.57 1.22H9.48a1.6 1.6 0 0 1-1.56-1.25L6.2 6.5Z" />
+              <circle cx="9.5" cy="19.6" r="1.5" fill="currentColor" stroke="none" />
+              <circle cx="17.5" cy="19.6" r="1.5" fill="currentColor" stroke="none" />
+            </svg>
+            <span class="cart-badge" data-cart-count hidden>0</span>
+          </a>
+          <button class="nav__toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="primary-menu"><span></span></button>
+        </div>
         <ul class="nav__links" id="primary-menu">
           <li><a href="index.html">Home</a></li>
           <li><a href="products.html">Products</a></li>
           <li><a href="about.html">About</a></li>
           <li><a href="wholesale.html">Wholesale</a></li>
           <li><a href="contact.html">Contact</a></li>
-          <li class="nav__cart"><a href="cart.html" class="cart-link" aria-label="View cart"><span aria-hidden="true">&#128722;</span><span class="cart-badge" data-cart-count hidden>0</span></a></li>
           <li class="nav__cta"><a href="wholesale.html" class="btn btn--primary">Wholesale Enquiry</a></li>
         </ul>
       </nav>
@@ -199,7 +209,7 @@
     </div>
   </footer>
 
-  <script src="js/cart.js?v=2"></script>
-  <script src="js/main.js?v=2"></script>
+  <script src="js/cart.js?v=3"></script>
+  <script src="js/main.js?v=3"></script>
 </body>
 </html>

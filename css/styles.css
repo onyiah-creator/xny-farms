@@ -124,14 +124,19 @@ p { margin: 0 0 1rem; }
   z-index: 50;
   box-shadow: var(--shadow-sm);
 }
+/* Flex order (rather than source order) drives the desktop layout:
+   brand (1) — nav links (2) — actions/cart (3). The cart + hamburger live
+   in .nav__actions, which sits OUTSIDE .nav__links on purpose, so the cart
+   stays visible in the bar on mobile instead of collapsing into the
+   hamburger menu. .nav__links gets margin-left:auto to push the links and
+   the cart together over to the right. */
 .nav {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 1rem;
   padding: .85rem 0;
 }
-.brand { display: flex; align-items: center; gap: .7rem; min-width: 0; flex: 0 1 auto; }
+.brand { display: flex; align-items: center; gap: .7rem; min-width: 0; flex: 0 1 auto; order: 1; }
 .brand:hover { text-decoration: none; }
 /* Logo is a wide lockup (1893x831 ≈ 2.28:1) — scale height fluidly between
    mobile and desktop; width follows automatically to preserve aspect ratio. */
@@ -148,7 +153,7 @@ body.home .site-header .brand__logo { height: clamp(48px, 7vw, 72px); }
 }
 .footer-brand .brand__logo { height: clamp(26px, 4vw, 40px); }
 
-.nav__links { display: flex; align-items: center; gap: .35rem; list-style: none; margin: 0; padding: 0; }
+.nav__links { display: flex; align-items: center; gap: .35rem; list-style: none; margin: 0 0 0 auto; padding: 0; order: 2; }
 .nav__links a {
   display: inline-block;
   padding: .55rem .9rem;
@@ -161,25 +166,34 @@ body.home .site-header .brand__logo { height: clamp(48px, 7vw, 72px); }
 .nav__links a.is-active { color: var(--green-800); background: var(--green-100); }
 .nav__cta { margin-left: .4rem; }
 
-.nav__cart { display: flex; align-items: center; margin-left: .2rem; }
+/* Cart + hamburger group. Stays in the bar at every breakpoint. */
+.nav__actions { display: flex; align-items: center; gap: .35rem; order: 3; }
+
 .cart-link {
   position: relative;
   display: inline-flex; align-items: center; justify-content: center;
-  width: 40px; height: 40px;
-  border-radius: 8px;
-  font-size: 1.25rem;
-  color: var(--ink);
+  width: 46px; height: 46px;
+  border-radius: 10px;
+  color: var(--green-800);
+  transition: background .2s ease, color .2s ease;
 }
-.cart-link:hover { background: var(--green-100); text-decoration: none; }
+.cart-link:hover { background: var(--green-100); color: var(--green-900); text-decoration: none; }
+/* Inline SVG rather than the old 🛒 emoji: emoji can't take a stroke
+   weight and renders differently per-platform. currentColor + a heavy
+   stroke keeps it crisp and clearly visible against the white header. */
+.cart-icon { width: 27px; height: 27px; display: block; }
+
 .cart-badge {
-  position: absolute; top: 0; right: 0;
+  position: absolute; top: 2px; right: 2px;
   background: var(--amber-500); color: var(--green-900);
-  font-size: .65rem; font-weight: 700; font-family: var(--font-body);
-  min-width: 17px; height: 17px; padding: 0 4px;
+  font-family: var(--font-body);
+  font-size: .74rem; font-weight: 800;
+  min-width: 20px; height: 20px; padding: 0 5px;
   border-radius: 999px;
   display: flex; align-items: center; justify-content: center;
   line-height: 1;
   border: 2px solid var(--white);
+  box-shadow: var(--shadow-sm);
 }
 .cart-badge[hidden] { display: none; }
 
@@ -187,17 +201,25 @@ body.home .site-header .brand__logo { height: clamp(48px, 7vw, 72px); }
   display: none;
   background: transparent;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  width: 44px; height: 42px;
+  border-radius: 10px;
+  width: 46px; height: 46px;
   cursor: pointer;
   padding: 0;
 }
 .nav__toggle span, .nav__toggle span::before, .nav__toggle span::after {
-  content: ""; display: block; width: 20px; height: 2px; background: var(--green-900);
-  margin: 0 auto; position: relative; transition: .2s;
+  content: ""; display: block; width: 22px; height: 2.5px; border-radius: 2px;
+  background: var(--green-900);
+  margin: 0 auto; position: relative;
+  transition: transform .28s ease, background-color .15s ease;
 }
-.nav__toggle span::before { position: absolute; top: -6px; }
-.nav__toggle span::after { position: absolute; top: 6px; }
+.nav__toggle span::before { position: absolute; left: 0; top: -7px; }
+.nav__toggle span::after { position: absolute; left: 0; top: 7px; }
+
+/* Hamburger → X. The middle bar fades out while the outer two slide to
+   the centre (translateY cancels their ±7px offset) and cross over. */
+.nav__toggle.is-open span { background-color: transparent; }
+.nav__toggle.is-open span::before { transform: translateY(7px) rotate(45deg); }
+.nav__toggle.is-open span::after { transform: translateY(-7px) rotate(-45deg); }
 
 /* ---------- Hero ---------- */
 .hero {
@@ -511,10 +533,14 @@ hr.divider { border: 0; border-top: 1px solid var(--line); margin: 2rem 0; }
    lines around 768–800px otherwise). */
 @media (max-width: 860px) {
   .nav__toggle { display: block; }
+  /* .nav__links leaves the flow here, so .nav__actions (cart + hamburger)
+     needs its own auto margin to stay pinned to the right of the bar. */
+  .nav__actions { margin-left: auto; }
   .nav__links {
     position: absolute; top: 100%; left: 0; right: 0;
     flex-direction: column; align-items: stretch;
     background: var(--white); border-bottom: 1px solid var(--line);
+    margin: 0;
     padding: .6rem 1.25rem 1rem; gap: .2rem;
     box-shadow: var(--shadow-md);
     display: none;

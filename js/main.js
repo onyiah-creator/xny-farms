@@ -15,6 +15,8 @@
     if (!toggle || !links) return;
     toggle.addEventListener("click", function () {
       var open = links.classList.toggle("is-open");
+      // Same class on the button drives the CSS hamburger → X animation.
+      toggle.classList.toggle("is-open", open);
       toggle.setAttribute("aria-expanded", open ? "true" : "false");
     });
   }
