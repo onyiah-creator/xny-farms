@@ -55,6 +55,10 @@
 
 /* ---------- Reset-ish ---------- */
 * { box-sizing: border-box; }
+/* The UA stylesheet's [hidden] { display: none } loses to any author-level
+   display rule, so anything with e.g. `display: flex` stays visible when JS
+   sets el.hidden = true. This makes the hidden attribute actually reliable. */
+[hidden] { display: none !important; }
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
@@ -195,7 +199,6 @@ body.home .site-header .brand__logo { height: clamp(48px, 7vw, 72px); }
   border: 2px solid var(--white);
   box-shadow: var(--shadow-sm);
 }
-.cart-badge[hidden] { display: none; }
 
 .nav__toggle {
   display: none;
@@ -473,9 +476,23 @@ body.home .site-header .brand__logo { height: clamp(48px, 7vw, 72px); }
   display: flex; align-items: center; gap: .6rem;
   border: 1px solid var(--line); border-radius: var(--radius-sm);
   padding: .65rem .85rem; cursor: pointer; font-size: .92rem;
+  line-height: 1.45;
 }
 .delivery-option:has(input:checked) { border-color: var(--green-600); background: var(--green-100); }
-.delivery-option input { margin: 0; }
+/* The pickup option wraps onto two lines (address under the label), so the
+   radio must not shrink and stays aligned to the first line of text. */
+.delivery-option input { margin: 0; flex: 0 0 auto; align-self: flex-start; margin-top: .22rem; }
+.delivery-option strong { color: var(--green-800); }
+
+.pickup-note {
+  background: var(--green-100);
+  border-left: 4px solid var(--green-600);
+  padding: .7rem .9rem;
+  border-radius: var(--radius-sm);
+  font-size: .88rem;
+  color: var(--ink);
+  margin: .7rem 0 0;
+}
 
 .confirmation-card {
   background: var(--white);

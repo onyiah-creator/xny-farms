@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=3" />
+  <link rel="stylesheet" href="css/styles.css?v=4" />
 </head>
 <body>
 
@@ -83,21 +83,32 @@
             <div class="cart-line"><span>Subtotal</span><span id="cart-subtotal">&#8358;0</span></div>
 
             <div class="field" style="margin-top:.6rem">
-              <label>Delivery Location <span class="req">*</span></label>
+              <label>Delivery or Pickup <span class="req">*</span></label>
+              <!-- The two delivery prices are filled in by js/checkout.js from
+                   the DELIVERY_RATE_LAGOS / DELIVERY_RATE_OTHER constants, so
+                   they can't drift out of sync with what's charged. -->
               <div class="delivery-options">
                 <label class="delivery-option">
-                  <input type="radio" name="delivery_state" value="lagos" data-delivery-radio />
-                  Lagos &mdash; &#8358;1,500
+                  <input type="radio" name="fulfilment" value="pickup" data-delivery-radio />
+                  <span><strong>Pickup (Free)</strong><br />1-3 Adebakin Close, Santos Layout, Akowonjo, Alimosho, Lagos</span>
                 </label>
                 <label class="delivery-option">
-                  <input type="radio" name="delivery_state" value="other" data-delivery-radio />
-                  Other Nigerian States &mdash; &#8358;3,500
+                  <input type="radio" name="fulfilment" value="lagos" data-delivery-radio />
+                  <span>Delivery &mdash; Lagos (<span data-rate-lagos>&#8358;0</span>)</span>
+                </label>
+                <label class="delivery-option">
+                  <input type="radio" name="fulfilment" value="other" data-delivery-radio />
+                  <span>Delivery &mdash; Other States (<span data-rate-other>&#8358;0</span>)</span>
                 </label>
               </div>
-              <p class="form-note" style="margin-top:.5rem">Delivery rates shown are provisional flat rates and may be updated once a courier partner is confirmed.</p>
+              <p id="pickup-note" class="pickup-note" hidden>
+                <strong>Collect from:</strong> 1-3 Adebakin Close, Santos Layout, Akowonjo, Alimosho, Lagos.
+                Please bring your order confirmation (or order reference) and a valid ID when collecting.
+              </p>
+              <p class="form-note" style="margin-top:.5rem">Delivery rates shown are provisional flat rates and may be updated once a courier partner is confirmed. Pickup is always free.</p>
             </div>
 
-            <div class="cart-line"><span>Delivery</span><span id="cart-delivery">&#8212;</span></div>
+            <div class="cart-line"><span id="cart-delivery-label">Delivery</span><span id="cart-delivery">&#8212;</span></div>
             <div class="cart-line cart-line--total"><span>Total</span><span id="cart-total">&#8358;0</span></div>
 
             <button type="button" id="proceed-checkout-btn" class="btn btn--green" style="width:100%;margin-top:1.2rem">Proceed to Checkout</button>
@@ -123,11 +134,17 @@
                   <label for="co-phone">Phone <span class="req">*</span></label>
                   <input id="co-phone" name="phone" type="tel" required autocomplete="tel" />
                 </div>
-                <div class="field field--full">
+                <!-- Hidden and un-required by js/checkout.js when Pickup is
+                     chosen — no shipping address is needed in that case. -->
+                <div class="field field--full" id="co-address-field">
                   <label for="co-address">Delivery address <span class="req">*</span></label>
                   <textarea id="co-address" name="address" required placeholder="Street address, city/town, state"></textarea>
                 </div>
               </div>
+              <p id="pickup-checkout-note" class="pickup-note" hidden>
+                <strong>Pickup order &mdash; no delivery address needed.</strong><br />
+                Collect from 1-3 Adebakin Close, Santos Layout, Akowonjo, Alimosho, Lagos. Please bring your order confirmation (or order reference) and a valid ID.
+              </p>
               <p class="form-note">Payment is processed securely by Flutterwave. XNY Farms does not see or store your card details.</p>
             </form>
             <button type="button" id="pay-now-btn" class="btn btn--primary" style="margin-top:.8rem">Pay Now &mdash; <span id="pay-now-amount">&#8358;0</span></button>
@@ -135,16 +152,20 @@
           </div>
         </div>
 
-        <!-- Order confirmation -->
-        <div id="order-confirmation" style="display:none;margin-top:2.5rem">
-          <div class="confirmation-card">
-            <div class="confirmation-icon">&#9989;</div>
-            <h2>Thank you &mdash; your order has been received</h2>
-            <p>Reference: <span id="confirmation-ref" class="confirmation-ref"></span></p>
-            <p>We've opened your email app with an order confirmation ready to send. Please also send this confirmation email so we can begin processing your order.</p>
-            <button type="button" id="resend-email-btn" class="btn btn--outline">Resend Confirmation Email</button>
-            <p class="form-note" style="margin-top:1.2rem">If nothing opens in your email app, please email us directly at <a href="mailto:xnyfarms@gmail.com">xnyfarms@gmail.com</a> with your order reference above.</p>
-          </div>
+      </div>
+
+      <!-- Order confirmation. Deliberately a SIBLING of #cart-content, not a
+           child: on success js/checkout.js hides #cart-content, which would
+           also hide this panel (and its resend button) if it were nested
+           inside, leaving the customer with a blank page after paying. -->
+      <div id="order-confirmation" style="display:none">
+        <div class="confirmation-card">
+          <div class="confirmation-icon">&#9989;</div>
+          <h2>Thank you &mdash; your order has been received</h2>
+          <p>Reference: <span id="confirmation-ref" class="confirmation-ref"></span></p>
+          <p>We've opened your email app with an order confirmation ready to send. Please also send this confirmation email so we can begin processing your order.</p>
+          <button type="button" id="resend-email-btn" class="btn btn--outline">Resend Confirmation Email</button>
+          <p class="form-note" style="margin-top:1.2rem">If nothing opens in your email app, please email us directly at <a href="mailto:xnyfarms@gmail.com">xnyfarms@gmail.com</a> with your order reference above.</p>
         </div>
       </div>
 
@@ -196,9 +217,9 @@
     </div>
   </footer>
 
-  <script src="js/cart.js?v=3"></script>
+  <script src="js/cart.js?v=4"></script>
   <script src="https://checkout.flutterwave.com/v3.js"></script>
-  <script src="js/checkout.js?v=3"></script>
-  <script src="js/main.js?v=3"></script>
+  <script src="js/checkout.js?v=4"></script>
+  <script src="js/main.js?v=4"></script>
 </body>
 </html>

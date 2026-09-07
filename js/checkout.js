@@ -27,13 +27,21 @@
   var DELIVERY_RATE_LAGOS = 1500; // NGN — placeholder, update once a courier partner is confirmed
   var DELIVERY_RATE_OTHER = 3500; // NGN — placeholder, update once a courier partner is confirmed
 
+  // ---- Pickup ------------------------------------------------------
+  // Customers can collect from the distribution point instead of paying
+  // for delivery. Free, so it carries no rate constant.
+  var PICKUP_ADDRESS = "1-3 Adebakin Close, Santos Layout, Akowonjo, Alimosho, Lagos";
+
   // ---- Flutterwave ----------------------------------------------------
   // Public key only — paste your real Flutterwave PUBLIC key below.
   // Never put the secret key here.
   var FLUTTERWAVE_PUBLIC_KEY = "FLWPUBK-a3e668407ea4d1608e40f8bac749ff69-X";
 
   var ORDER_NOTIFICATION_EMAIL = "xnyfarms@gmail.com";
-  var DELIVERY_STORAGE_KEY = "xny_delivery_state";
+  // Holds the chosen fulfilment option: "pickup" | "lagos" | "other".
+  // Key name kept from when the choice was delivery-only, so a shopper
+  // who picked a delivery zone before pickup existed keeps their choice.
+  var FULFILMENT_STORAGE_KEY = "xny_delivery_state";
 
   var cart = window.XNYCart;
   if (!cart) return;
@@ -47,8 +55,15 @@
     els.items = document.getElementById("cart-items");
     els.subtotal = document.getElementById("cart-subtotal");
     els.delivery = document.getElementById("cart-delivery");
+    els.deliveryLabel = document.getElementById("cart-delivery-label");
     els.total = document.getElementById("cart-total");
     els.deliveryRadios = document.querySelectorAll("[data-delivery-radio]");
+    els.rateLagos = document.querySelectorAll("[data-rate-lagos]");
+    els.rateOther = document.querySelectorAll("[data-rate-other]");
+    els.pickupNote = document.getElementById("pickup-note");
+    els.addressField = document.getElementById("co-address-field");
+    els.addressInput = document.getElementById("co-address");
+    els.pickupCheckoutNote = document.getElementById("pickup-checkout-note");
     els.proceedBtn = document.getElementById("proceed-checkout-btn");
     els.checkoutSection = document.getElementById("checkout-section");
     els.checkoutForm = document.getElementById("checkout-form");
@@ -64,21 +79,35 @@
     return "₦" + Math.round(n).toLocaleString("en-NG");
   }
 
-  function getDeliveryState() {
-    try { return window.localStorage.getItem(DELIVERY_STORAGE_KEY) || ""; }
+  function getFulfilment() {
+    try { return window.localStorage.getItem(FULFILMENT_STORAGE_KEY) || ""; }
     catch (e) { return ""; }
   }
 
-  function setDeliveryState(value) {
-    try { window.localStorage.setItem(DELIVERY_STORAGE_KEY, value); }
-    catch (e) { /* not fatal — delivery choice just won't persist */ }
+  function setFulfilment(value) {
+    try { window.localStorage.setItem(FULFILMENT_STORAGE_KEY, value); }
+    catch (e) { /* not fatal — the choice just won't persist */ }
+  }
+
+  function isPickup() {
+    return getFulfilment() === "pickup";
   }
 
   function getDeliveryFee() {
-    var state = getDeliveryState();
-    if (state === "lagos") return DELIVERY_RATE_LAGOS;
-    if (state === "other") return DELIVERY_RATE_OTHER;
-    return 0;
+    var choice = getFulfilment();
+    if (choice === "lagos") return DELIVERY_RATE_LAGOS;
+    if (choice === "other") return DELIVERY_RATE_OTHER;
+    return 0; // pickup, or nothing chosen yet
+  }
+
+  // Human-readable fulfilment method, used in the summary and in the
+  // order-notification email.
+  function getFulfilmentLabel() {
+    var choice = getFulfilment();
+    if (choice === "pickup") return "Pickup (free)";
+    if (choice === "lagos") return "Delivery — Lagos";
+    if (choice === "other") return "Delivery — Other Nigerian States";
+    return "Not selected";
   }
 
   function escapeHtml(str) {
@@ -146,23 +175,56 @@
     });
   }
 
+  // The Lagos / Other States prices shown next to the radios come from
+  // the rate constants above, so the labels can never drift out of sync
+  // with what's actually charged.
+  function renderRates() {
+    els.rateLagos.forEach(function (el) { el.textContent = money(DELIVERY_RATE_LAGOS); });
+    els.rateOther.forEach(function (el) { el.textContent = money(DELIVERY_RATE_OTHER); });
+  }
+
   function renderTotals() {
     var subtotal = cart.getSubtotal();
     var deliveryFee = getDeliveryFee();
     var total = subtotal + deliveryFee;
     els.subtotal.textContent = money(subtotal);
-    els.delivery.textContent = deliveryFee ? money(deliveryFee) : "— (choose delivery below)";
+
+    if (isPickup()) {
+      els.deliveryLabel.textContent = "Pickup";
+      els.delivery.textContent = "Free";
+    } else {
+      els.deliveryLabel.textContent = "Delivery";
+      els.delivery.textContent = deliveryFee ? money(deliveryFee) : "— (choose an option below)";
+    }
+
     els.total.textContent = money(total);
     if (els.payAmount) els.payAmount.textContent = money(total);
   }
 
+  // Pickup needs no shipping address, so the address field is hidden and
+  // un-required for it (a hidden field left `required` would silently
+  // block form validation), and a pickup reminder is shown instead.
+  function applyFulfilmentUi() {
+    var pickup = isPickup();
+
+    if (els.pickupNote) els.pickupNote.hidden = !pickup;
+    if (els.pickupCheckoutNote) els.pickupCheckoutNote.hidden = !pickup;
+
+    if (els.addressField && els.addressInput) {
+      els.addressField.hidden = pickup;
+      els.addressInput.required = !pickup;
+      if (pickup) els.addressInput.value = "";
+    }
+  }
+
   function initDeliveryRadios() {
-    var saved = getDeliveryState();
+    var saved = getFulfilment();
     els.deliveryRadios.forEach(function (radio) {
       if (radio.value === saved) radio.checked = true;
       radio.addEventListener("change", function () {
-        setDeliveryState(radio.value);
+        setFulfilment(radio.value);
         renderTotals();
+        applyFulfilmentUi();
       });
     });
   }
@@ -171,8 +233,8 @@
     if (!els.proceedBtn) return;
     els.proceedBtn.addEventListener("click", function () {
       if (cart.readCart().length === 0) return;
-      if (!getDeliveryState()) {
-        window.alert("Please choose a delivery location before proceeding to checkout.");
+      if (!getFulfilment()) {
+        window.alert("Please choose pickup or a delivery option before proceeding to checkout.");
         return;
       }
       els.checkoutSection.style.display = "";
@@ -180,63 +242,92 @@
     });
   }
 
-  function buildOrderEmailBody(txRef, status) {
-    var items = cart.readCart();
-    var itemLines = items.map(function (item) {
-      return "- " + item.name + " (" + item.size + ") x " + item.qty + " = " + money(item.price * item.qty);
-    });
+  // Snapshot everything the notification email needs WHILE the cart and
+  // form still hold the order. This must be taken before cart.clearCart()
+  // runs on success — otherwise the email is built from an emptied cart
+  // and reaches the business with no items and a zero total. The snapshot
+  // is also what the "resend" button replays, so it stays correct however
+  // long after the cart was cleared it's pressed.
+  function captureOrder(txRef, status) {
+    var form = els.checkoutForm;
     var subtotal = cart.getSubtotal();
     var deliveryFee = getDeliveryFee();
-    var total = subtotal + deliveryFee;
-    var stateLabel = getDeliveryState() === "lagos" ? "Lagos" : "Other Nigerian States";
-    var form = els.checkoutForm;
+    return {
+      txRef: txRef,
+      status: status,
+      items: cart.readCart(),
+      subtotal: subtotal,
+      deliveryFee: deliveryFee,
+      total: subtotal + deliveryFee,
+      pickup: isPickup(),
+      fulfilmentLabel: getFulfilmentLabel(),
+      name: form.elements.name.value,
+      email: form.elements.email.value,
+      phone: form.elements.phone.value,
+      address: form.elements.address.value
+    };
+  }
+
+  function buildOrderEmailBody(order) {
+    var itemLines = order.items.map(function (item) {
+      return "- " + item.name + " (" + item.size + ") x " + item.qty + " = " + money(item.price * item.qty);
+    });
 
     var lines = [
-      "Order reference (Flutterwave tx_ref): " + txRef,
-      "Payment status (as reported client-side): " + status,
+      "Order reference (Flutterwave tx_ref): " + order.txRef,
+      "Payment status (as reported client-side): " + order.status,
       "",
-      "Customer: " + form.elements.name.value,
-      "Email: " + form.elements.email.value,
-      "Phone: " + form.elements.phone.value,
-      "Delivery address: " + form.elements.address.value,
-      "Delivery location: " + stateLabel,
+      "Fulfilment method: " + order.fulfilmentLabel,
+      order.pickup
+        ? "Pickup location: " + PICKUP_ADDRESS
+        : "Delivery address: " + order.address,
+      "",
+      "Customer: " + order.name,
+      "Email: " + order.email,
+      "Phone: " + order.phone,
       "",
       "Items:"
     ]
       .concat(itemLines)
       .concat([
         "",
-        "Subtotal: " + money(subtotal),
-        "Delivery: " + money(deliveryFee),
-        "Total: " + money(total),
+        "Subtotal: " + money(order.subtotal),
+        order.pickup ? "Pickup: Free" : "Delivery: " + money(order.deliveryFee),
+        "Total: " + money(order.total),
+        "",
+        order.pickup
+          ? "This is a PICKUP order — the customer will collect from " + PICKUP_ADDRESS + "."
+          : "This order is for delivery.",
         "",
         "Please verify this payment in the Flutterwave dashboard " +
-          "(dashboard.flutterwave.com) before dispatching this order."
+          "(dashboard.flutterwave.com) before " +
+          (order.pickup ? "releasing this order." : "dispatching this order.")
       ]);
     return lines.join("\n");
   }
 
-  function sendConfirmationEmail(txRef, status) {
-    var subject = encodeURIComponent("New Order — XNY Farms (" + txRef + ")");
-    var body = encodeURIComponent(buildOrderEmailBody(txRef, status));
+  function sendConfirmationEmail(order) {
+    var subject = encodeURIComponent("New Order — XNY Farms (" + order.txRef + ")");
+    var body = encodeURIComponent(buildOrderEmailBody(order));
     window.location.href = "mailto:" + ORDER_NOTIFICATION_EMAIL + "?subject=" + subject + "&body=" + body;
   }
 
-  function showConfirmation(txRef) {
+  function showConfirmation(order) {
     els.content.style.display = "none";
+    els.empty.style.display = "none"; // cart is now empty, but show the receipt, not "cart is empty"
     els.confirmation.style.display = "";
-    els.confirmationRef.textContent = txRef;
+    els.confirmationRef.textContent = order.txRef;
     els.confirmation.scrollIntoView({ behavior: "smooth", block: "start" });
 
     els.resendEmailBtn.onclick = function () {
-      sendConfirmationEmail(txRef, "successful");
+      sendConfirmationEmail(order);
     };
 
     // Fire the order-notification email automatically so the business
     // doesn't depend on the customer remembering to click "resend" —
     // but the button above still exists in case the mail client didn't
     // open (e.g. the visitor closed the tab too quickly).
-    sendConfirmationEmail(txRef, "successful");
+    sendConfirmationEmail(order);
   }
 
   function initPayNow() {
@@ -248,8 +339,8 @@
         els.checkoutForm.reportValidity();
         return;
       }
-      if (!getDeliveryState()) {
-        window.alert("Please choose a delivery location before paying.");
+      if (!getFulfilment()) {
+        window.alert("Please choose pickup or a delivery option before paying.");
         return;
       }
       if (typeof FlutterwaveCheckout !== "function") {
@@ -294,8 +385,10 @@
         callback: function (response) {
           paymentSettled = true;
           if (response && response.status === "successful") {
+            // Snapshot first — clearCart() below empties the source data.
+            var order = captureOrder(txRef, "successful");
             cart.clearCart();
-            showConfirmation(txRef);
+            showConfirmation(order);
           } else {
             els.checkoutStatus.textContent =
               "Payment was not completed (status: " + (response && response.status ? response.status : "unknown") +
@@ -317,8 +410,10 @@
   document.addEventListener("DOMContentLoaded", function () {
     cacheEls();
     renderItems();
+    renderRates();
     initDeliveryRadios();
     renderTotals();
+    applyFulfilmentUi();
     initProceed();
     initPayNow();
   });
