@@ -44,19 +44,25 @@
   //    e.g - [card, mobilemoney, ussd] and so on.
   //    Defaults to 'card, ussd, mobilemoney'"
   //
-  // TO ADD QR PAYMENTS: Flutterwave's QR product is NIBSS QR, which their
-  // docs and SDK README call "NQR" (not "qr"), so the token here is most
-  // likely `nqr` — but that could NOT be verified against
-  // developer.flutterwave.com, which is unreachable from the environment
-  // this was written in, and their typings are `'card, ussd, mobilemoney'
-  // | string`, i.e. they enumerate nothing and won't reject a bad token.
-  // Confirm the exact string in the Flutterwave dashboard/docs, then add
-  // it to the list below. Two dashboard-side steps also apply:
-  //   1. NQR must be enabled as a payment method on the account.
-  //   2. Flutterwave only honours payment_options when "Enable Dashboard
-  //      Payment Options" is UNCHECKED in Account Settings — with it on,
-  //      the dashboard's own selection wins and this string is ignored.
-  var PAYMENT_OPTIONS = "card, banktransfer, ussd";
+  // QR PAYMENTS — CONFIRMED. Flutterwave's QR product is NIBSS QR, and the
+  // token is "nqr", lowercase, per their payment-methods documentation:
+  //   https://developer.flutterwave.com/v3.0/docs/payment-methods
+  // (An earlier note here flagged this as unverified because that domain is
+  // unreachable from the environment this was written in; it was since
+  // confirmed against the docs directly.) NQR is also confirmed Enabled on
+  // the live merchant account — Settings → Business preference → Payment
+  // methods — as of 2026-09-29.
+  //
+  // One dashboard setting still governs whether this string is honoured at
+  // all: Flutterwave only applies payment_options when "Enable Dashboard
+  // Payment Options" is UNCHECKED in Account Settings. With it on, the
+  // dashboard's own selection wins and everything below is ignored. So if a
+  // method listed here doesn't appear in the modal, check that first.
+  //
+  // Note the typings are `'card, ussd, mobilemoney' | string` — they
+  // enumerate nothing, so a mistyped token fails silently rather than
+  // erroring. Verify any change against a real checkout.
+  var PAYMENT_OPTIONS = "card, banktransfer, ussd, nqr";
 
   var ORDER_NOTIFICATION_EMAIL = "xnyfarms@gmail.com";
   // Holds the chosen fulfilment option: "pickup" | "lagos" | "other".
