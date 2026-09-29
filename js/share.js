@@ -38,11 +38,19 @@
   }
 
   /* Absolute URL for one product, e.g.
-       https://xnyfarms.com/products.html?ref=ADEBAYO01#ashe-honey-50cl
+       https://xnyfarms.com/products.html?p=ashe-honey-50cl&ref=ADEBAYO01#ashe-honey-50cl
      The query string must come BEFORE the hash, or the browser treats
-     "?ref=..." as part of the fragment and the referral is never read. */
+     "?ref=..." as part of the fragment and the referral is never read.
+
+     "p" and the fragment name the same product, and both are needed:
+       - the fragment scrolls a human to the product card, but is never
+         sent to the server, so a social scraper never sees it;
+       - "p" is sent, and functions/_middleware.js uses it to serve that
+         product's own preview card to WhatsApp/Facebook/X.
+     Drop "p" and every product would share the same generic preview. */
   function buildShareUrl(id) {
     var base = new URL(PRODUCT_PAGE, window.location.href);
+    base.searchParams.set("p", id);
     var code = getRefCode();
     if (code) base.searchParams.set("ref", code);
     base.hash = id;

@@ -299,7 +299,67 @@ dispatching any order, don't rely solely on receiving the confirmation email.
 
 ---
 
-## 6. Referral / affiliate programme
+## 6. Social share previews (Open Graph)
+
+Every page carries Open Graph and Twitter Card tags, so a link pasted into
+WhatsApp, Facebook or X previews with a title, description and a 1200x630
+image instead of a bare URL.
+
+### Per-product previews — and the catch that shapes the design
+A product share link looks like:
+
+```
+https://xnyfarms.com/products.html?p=ashe-honey-50cl&ref=ADEBAYO01#ashe-honey-50cl
+```
+
+Both the `?p=` and the `#fragment` name the same product, and both are needed
+for different readers:
+
+- the **fragment** scrolls a person to the right product card, but is **never
+  sent to the server** — browsers strip it from the request;
+- **`?p=` is sent**, and `functions/_middleware.js` uses it to swap in that
+  product's own preview card before the HTML goes out.
+
+Social scrapers fetch the URL server-side and don't run JavaScript, so without
+`?p=` they would only ever see plain `/products.html` and **all four products
+would preview with the same generic image**. That is the whole reason the
+middleware exists.
+
+The middleware gets out of the way immediately on any request without `?p=`
+(every normal visit, every `/api/` call, every asset) and is wrapped in
+try/catch that falls back to the untouched response — it sits in front of the
+whole site, so it must never be able to break it.
+
+### The card images
+`assets/og/*.jpg` — one per product plus `default.jpg` for every other page.
+They're generated, then committed and served as ordinary static files, so
+**the site still has no build step**. Regenerate only when a product photo,
+name or price changes:
+
+```bash
+node tools/generate-og-images.mjs
+```
+
+The generator reads names and prices straight out of `js/cart.js`, so the
+cards can't drift from the catalogue the cart uses. Product photos are
+800x1000 portrait while every platform crops previews to roughly 1.91:1
+landscape, which is why the raw photo isn't used directly — it would be
+cropped through the middle of the bottle.
+
+After regenerating, platforms may keep serving the old image from their own
+cache. Force a re-fetch with
+[Facebook's Sharing Debugger](https://developers.facebook.com/tools/debug/)
+or [X's Card Validator](https://cards-dev.twitter.com/validator).
+
+### Adding a new product
+1. Add it to `PRODUCTS` in `js/cart.js`.
+2. Add its title/description to `OG_PRODUCTS` in `functions/_middleware.js`.
+3. Re-run `node tools/generate-og-images.mjs`.
+4. Give its card an `id` on `products.html` and a `data-share-product` button.
+
+---
+
+## 7. Referral / affiliate programme
 
 Distributors and affiliates get a referral link. When someone arrives via
 that link and completes a purchase, the order is logged against their code

@@ -5,7 +5,7 @@
 
    There is deliberately no automatic email sending: this project has no
    transactional email service or API key. The message is composed for
-   you; you still press send. See README section 6.
+   you; you still press send. See README section 7 (referral / affiliate programme).
    ========================================================= */
 (function () {
   "use strict";
