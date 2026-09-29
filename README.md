@@ -351,11 +351,27 @@ cache. Force a re-fetch with
 [Facebook's Sharing Debugger](https://developers.facebook.com/tools/debug/)
 or [X's Card Validator](https://cards-dev.twitter.com/validator).
 
+### A shared link shows only that product
+Opening `products.html?p=<id>` shows just that one product, not the whole
+catalogue, with a "View all products" link back. The same `?p=` drives both
+halves of a share: the preview card a scraper sees, and the focused page a
+person lands on.
+
+An inline script in `products.html`'s `<head>` sets `data-focus-product` on
+`<html>`, and `css/styles.css` does the hiding. It's inline and in the head on
+purpose — anywhere later and every product would flash up before being hidden.
+The order is hide-then-reveal, so the wrong products are never painted. If the
+id matches no product the full catalogue is restored rather than showing an
+empty page, and with JavaScript off the attribute is never set, so everything
+renders normally.
+
 ### Adding a new product
 1. Add it to `PRODUCTS` in `js/cart.js`.
 2. Add its title/description to `OG_PRODUCTS` in `functions/_middleware.js`.
 3. Re-run `node tools/generate-og-images.mjs`.
-4. Give its card an `id` on `products.html` and a `data-share-product` button.
+4. Give its card an `id` on `products.html` (inside a `.product-group`) and a
+   `data-share-product` button. The `id` is what both the focused view and the
+   `#fragment` scroll rely on, so it must match the catalogue id exactly.
 
 ---
 

@@ -31,7 +31,38 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=9" />
+  <link rel="canonical" href="https://xnyfarms.com/products.html" />
+  <link rel="stylesheet" href="css/styles.css?v=10" />
+  <script>
+    /* A shared product link (?p=<id>) shows ONLY that product.
+       This is inline in <head> deliberately: it has to run before the
+       catalogue paints, otherwise every product flashes up first and is
+       then yanked away. It only sets an attribute — css/styles.css does the
+       hiding — and the DOMContentLoaded pass below reveals the matching
+       product, or restores the full catalogue if the id matches nothing. */
+    (function () {
+      try {
+        var id = new URLSearchParams(window.location.search).get("p") || "";
+        // Must also be a usable CSS/DOM id: letters first, no exotic chars.
+        if (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(id)) return;
+        var root = document.documentElement;
+        root.setAttribute("data-focus-product", id);
+        document.addEventListener("DOMContentLoaded", function () {
+          var card = document.getElementById(id);
+          var group = card && card.closest(".product-group");
+          if (!card || !group) {
+            // Unknown product — show everything rather than nothing.
+            root.removeAttribute("data-focus-product");
+            return;
+          }
+          card.classList.add("is-focus-card");
+          group.classList.add("is-focus-group");
+        });
+      } catch (e) {
+        document.documentElement.removeAttribute("data-focus-product");
+      }
+    })();
+  </script>
 </head>
 <body>
 
@@ -76,8 +107,13 @@
   <section class="section section--cream">
     <div class="container">
 
+      <p class="product-focus-note">
+        <span>Showing a single product from a shared link.</span>
+        <a href="products.html">View all products &rarr;</a>
+      </p>
+
       <!-- ASHE HONEY -->
-      <div id="ashe-honey" style="padding-bottom:2.4rem;margin-bottom:2.4rem;border-bottom:1px solid var(--line)">
+      <div class="product-group" id="ashe-honey" style="padding-bottom:2.4rem;margin-bottom:2.4rem;border-bottom:1px solid var(--line)">
         <div class="text-center" style="max-width:640px;margin:0 auto 2rem">
           <span class="badge">Signature Product &middot; Now Available</span>
           <h2>ASHE Honey</h2>
@@ -121,7 +157,7 @@
       </div>
 
       <!-- PALM OIL -->
-      <div id="palm-oil" style="padding-bottom:2.4rem;margin-bottom:2.4rem;border-bottom:1px solid var(--line)">
+      <div class="product-group" id="palm-oil" style="padding-bottom:2.4rem;margin-bottom:2.4rem;border-bottom:1px solid var(--line)">
         <div class="text-center" style="max-width:640px;margin:0 auto 2rem">
           <span class="badge">Kitchen Staple &middot; Now Available</span>
           <h2>Palm Oil</h2>
@@ -165,7 +201,7 @@
       </div>
 
       <!-- AGRICULTURAL PRODUCE -->
-      <div id="produce" style="padding-bottom:2.4rem;margin-bottom:2.4rem;border-bottom:1px solid var(--line)">
+      <div class="product-group" id="produce" style="padding-bottom:2.4rem;margin-bottom:2.4rem;border-bottom:1px solid var(--line)">
         <div class="text-center" style="max-width:640px;margin:0 auto 2rem">
           <span class="badge badge--soon">Coming Soon</span>
           <h2>Agricultural Produce</h2>
@@ -183,7 +219,7 @@
       </div>
 
       <!-- VALUE-ADDED -->
-      <div id="value-added">
+      <div class="product-group" id="value-added">
         <div class="text-center" style="max-width:640px;margin:0 auto 2rem">
           <span class="badge badge--soon">Coming Soon</span>
           <h2>Value-Added Products</h2>
@@ -259,9 +295,9 @@
     </div>
   </footer>
 
-  <script src="js/referral.js?v=9"></script>
-  <script src="js/cart.js?v=9"></script>
-  <script src="js/share.js?v=9"></script>
-  <script src="js/main.js?v=9"></script>
+  <script src="js/referral.js?v=10"></script>
+  <script src="js/cart.js?v=10"></script>
+  <script src="js/share.js?v=10"></script>
+  <script src="js/main.js?v=10"></script>
 </body>
 </html>
