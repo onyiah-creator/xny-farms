@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=8" />
+  <link rel="stylesheet" href="css/styles.css?v=9" />
 </head>
 <body>
 
@@ -81,8 +81,9 @@
         <h2 style="font-size:1.4rem">Affiliate Application</h2>
         <p class="lead" style="font-size:1rem">Tell us a little about you and where to send your commission.</p>
         <!--
-          FORM WIRING: mailto: only, no backend — same pattern as the
-          contact and wholesale forms. On submit, js/main.js builds a
+          FORM WIRING: opens a mailto: (same pattern as the contact and
+          wholesale forms) AND records the application to KV via
+          data-xny-post, so it shows up in the admin approval queue. On submit, js/main.js builds a
           mailto: link from the field values below and opens the
           visitor's email client with the application pre-filled.
 
@@ -93,7 +94,8 @@
         -->
         <form data-xny-form
               data-mailto="xnyfarms@gmail.com"
-              data-subject="Affiliate Signup Application — XNY Farms">
+              data-subject="Affiliate Signup Application — XNY Farms"
+              data-xny-post="/api/submit-affiliate-application">
           <div class="form-grid">
             <div class="field field--full">
               <label for="a-name">Full name <span class="req">*</span></label>
@@ -122,7 +124,7 @@
             </div>
             <div class="field field--full">
               <label for="a-account-name">Account holder name <span class="req">*</span></label>
-              <input id="a-account-name" name="account_name" data-label="Account Holder Name" type="text" required autocomplete="off" />
+              <input id="a-account-name" name="account_holder" data-label="Account Holder Name" type="text" required autocomplete="off" />
             </div>
 
             <div class="field field--full">
@@ -188,8 +190,8 @@
     </div>
   </footer>
 
-  <script src="js/referral.js?v=8"></script>
-  <script src="js/cart.js?v=8"></script>
-  <script src="js/main.js?v=8"></script>
+  <script src="js/referral.js?v=9"></script>
+  <script src="js/cart.js?v=9"></script>
+  <script src="js/main.js?v=9"></script>
 </body>
 </html>

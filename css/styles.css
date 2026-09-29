@@ -559,6 +559,35 @@ body.home .site-header .brand__logo { height: clamp(48px, 7vw, 72px); }
 .share__feedback { margin: 0; padding: 0 .7rem; font-size: .8rem; color: var(--green-700); }
 .share__feedback:empty { display: none; }
 
+/* ---------- Pending affiliate applications (admin-approve-affiliate.html) ---------- */
+.app-list { display: flex; flex-direction: column; gap: 1rem; }
+.app-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 1.2rem 1.3rem;
+}
+.app-card__head {
+  display: flex; flex-wrap: wrap; gap: .3rem 1rem;
+  align-items: baseline; justify-content: space-between;
+  margin-bottom: .8rem;
+}
+.app-card__head h3 { margin: 0; font-size: 1.05rem; }
+.app-card__when { font-size: .85rem; color: var(--muted); }
+.app-card__grid {
+  display: grid; grid-template-columns: max-content 1fr;
+  gap: .35rem 1rem; margin: 0 0 1rem;
+  font-size: .92rem;
+}
+.app-card__grid dt { font-weight: 700; color: var(--green-800); }
+.app-card__grid dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+
+@media (max-width: 560px) {
+  .app-card__grid { grid-template-columns: 1fr; gap: .1rem; }
+  .app-card__grid dd { margin-bottom: .5rem; }
+}
+
 /* ---------- Admin hub tiles (admin.html) ---------- */
 .admin-tile {
   display: flex; flex-direction: column;

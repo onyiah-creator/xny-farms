@@ -343,9 +343,24 @@ missing piece rather than failing silently — so if the report page says
 "REFERRALS_KV is not bound", that's the step you've missed.
 
 ### Approving an affiliate (assigning their code)
-Go to **`/admin-approve-affiliate.html`** (also unlinked and noindexed) and
-enter the report password, the affiliate's name and email, and the code you
-want to give them. Codes are **letters and digits only** and are stored in
+Go to **`/admin-approve-affiliate.html`** (also unlinked and noindexed), sign
+in with the report password, and you'll see any **pending applications** —
+each showing the applicant's contact and bank details and their promotion
+plan, newest first. **Use This Application** fills their name and email into
+the assignment form below; you type the code yourself, since which code to
+give is your call.
+
+Assigning a code marks that application `approved`, so it drops off the
+pending list and can't be approved twice by accident. You can also approve
+someone who never used the form by just typing their details in directly.
+
+Applications reach that list because the public signup form saves to KV as
+well as opening its mailto: — you still get the email, and now there's a
+durable record behind it. Saving is fire-and-forget: if it fails the
+applicant still gets their email opened as normal and sees no error, so
+check the pending list against your inbox occasionally.
+
+Codes are **letters and digits only** and are stored in
 upper case, so a link typed as `?ref=adebayo01` credits the same person as
 `?ref=ADEBAYO01`.
 
@@ -400,15 +415,28 @@ the password, so use a strong one.
 | `js/referral.js` | Loaded on every page. Captures `?ref=`, stores it, and POSTs completed orders to the logging endpoint. |
 | `functions/api/log-referral.js` | Pages Function. Validates the payload, **checks the code is an approved affiliate**, computes 8% commission, writes to KV as `referral:{CODE}:{tx_ref}`. |
 | `functions/api/get-referrals.js` | Pages Function. Password-checks, then aggregates all KV records by code. |
-| `functions/api/register-affiliate.js` | Pages Function. Password-checked code assignment; writes `affiliate:{CODE}`. |
+| `functions/api/register-affiliate.js` | Pages Function. Password-checked code assignment; writes `affiliate:{CODE}` and marks the linked application approved. |
+| `functions/api/submit-affiliate-application.js` | Pages Function. Public; stores a signup application as `application:{timestamp}-{id}` with status `pending`. |
+| `functions/api/get-pending-applications.js` | Pages Function. Password-checked; lists applications still pending, newest first. |
 | `functions/api/get-my-stats.js` | Pages Function. Public, returns one code's own totals only. |
 | `admin-referrals.html` + `js/admin-referrals.js` | The report page. |
 | `admin-approve-affiliate.html` + `js/admin-approve-affiliate.js` | Approve an affiliate and assign their code. |
 | `my-stats.html` + `js/my-stats.js` | Affiliate self-check page. |
 | `affiliate-signup.html` | Public application form (mailto:, reviewed by hand). |
 
-KV keys used: `affiliate:{CODE}` (one per approved affiliate) and
-`referral:{CODE}:{tx_ref}` (one per recorded sale).
+KV keys used: `affiliate:{CODE}` (one per approved affiliate),
+`referral:{CODE}:{tx_ref}` (one per recorded sale) and
+`application:{timestamp}-{id}` (one per signup application).
+
+### ⚠️ Applications hold personal data
+The signup form stores **bank details** in KV, not just in your inbox. Two
+things follow. First, `/api/submit-affiliate-application` is public and has
+no captcha or rate limiting — anyone who finds the URL can post junk into
+the pending list; if that becomes a problem, Cloudflare Turnstile is the
+natural fix. Second, under the NDPR those account numbers are personal data
+you're responsible for: keep them only as long as you need them, and delete
+applications you've finished with. The pending list is password-gated, but
+the records themselves stay in KV until you remove them.
 
 Logging happens **after** the customer's payment confirmation is already on
 screen, is never awaited, and fails silently (console only) — a logging

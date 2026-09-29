@@ -38,6 +38,34 @@
      over the network by this site. A visible email address is also
      shown near each form in the HTML as a fallback, in case the
      visitor's device has no configured email client.                */
+  /* Fire-and-forget POST of a form's named fields, used alongside (never
+     instead of) the mailto: hand-off. Returns nothing and never throws. */
+  function postFormData(form, url) {
+    var payload = {};
+    form.querySelectorAll("input, select, textarea").forEach(function (el) {
+      if (!el.name || el.type === "submit") return;
+      payload[el.name] = el.value;
+    });
+    payload.submitted_at = new Date().toISOString();
+
+    try {
+      window.fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        keepalive: true
+      })
+        .then(function (res) {
+          if (!res.ok) console.log("[xny] form POST returned HTTP " + res.status);
+        })
+        .catch(function (err) {
+          console.log("[xny] form POST failed:", err);
+        });
+    } catch (err) {
+      console.log("[xny] form POST failed:", err);
+    }
+  }
+
   function initForms() {
     var forms = document.querySelectorAll("form[data-xny-form]");
     forms.forEach(function (form) {
@@ -60,6 +88,15 @@
           var label = el.getAttribute("data-label") || el.name;
           lines.push(label + ": " + (el.value || "—"));
         });
+        // Optional: also POST the fields somewhere durable (currently the
+        // affiliate signup form, so applications are recorded and not just
+        // emailed). Fired BEFORE the mailto: below and never awaited —
+        // keepalive lets it finish even as the mail client takes over, and
+        // any failure is console-only. The mailto is the user-visible
+        // outcome and must not be delayed or blocked by this.
+        var postUrl = form.getAttribute("data-xny-post");
+        if (postUrl) postFormData(form, postUrl);
+
         var body = encodeURIComponent(lines.join("\n"));
         window.location.href =
           "mailto:" + to + "?subject=" + encodeURIComponent(subject) + "&body=" + body;

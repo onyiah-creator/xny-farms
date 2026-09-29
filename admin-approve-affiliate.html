@@ -9,7 +9,7 @@
   <meta name="robots" content="noindex, nofollow, noarchive" />
   <link rel="icon" href="assets/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
-  <link rel="stylesheet" href="css/styles.css?v=8" />
+  <link rel="stylesheet" href="css/styles.css?v=9" />
 </head>
 <body>
 
@@ -34,47 +34,73 @@
   <section class="section section--white">
     <div class="container admin-wrap">
 
-      <div class="form-card" id="approve-card">
-        <h2 style="font-size:1.3rem">Affiliate details</h2>
-        <p class="form-note" style="margin-top:0">
-          Only codes approved here earn commission. A referral link using a code that hasn&rsquo;t
-          been approved is quietly ignored &mdash; so assign the code <em>before</em> the affiliate
-          starts sharing their link.
-        </p>
-
-        <form id="approve-form">
-          <div class="form-grid">
-            <div class="field field--full">
-              <label for="ap-password">Report password <span class="req">*</span></label>
-              <input id="ap-password" name="password" type="password" required autocomplete="current-password" />
-            </div>
-            <div class="field">
-              <label for="ap-name">Affiliate name <span class="req">*</span></label>
-              <input id="ap-name" name="name" type="text" required autocomplete="off" />
-            </div>
-            <div class="field">
-              <label for="ap-email">Affiliate email <span class="req">*</span></label>
-              <input id="ap-email" name="email" type="email" required autocomplete="off" />
-            </div>
-            <div class="field field--full">
-              <label for="ap-code">Referral code to assign <span class="req">*</span></label>
-              <input id="ap-code" name="code" type="text" required autocomplete="off"
-                     placeholder="e.g. ADEBAYO01" pattern="[A-Za-z0-9]{3,32}"
-                     title="Letters and digits only, 3–32 characters, no spaces" />
-              <p class="form-note" style="margin:.35rem 0 0">
-                Letters and digits only, no spaces. Stored in upper case, so links work
-                whichever case the affiliate types.
-              </p>
-              <p id="ap-code-status" class="form-status" role="status" aria-live="polite" style="margin-top:.4rem"></p>
-            </div>
+      <!-- Password gate -->
+      <div class="form-card" id="approve-gate">
+        <h2 style="font-size:1.3rem">Sign in</h2>
+        <form id="gate-form">
+          <div class="field">
+            <label for="ap-password">Report password <span class="req">*</span></label>
+            <input id="ap-password" name="password" type="password" required autocomplete="current-password" />
           </div>
-
-          <div style="margin-top:1.1rem;display:flex;gap:.6rem;flex-wrap:wrap">
-            <button type="submit" class="btn btn--green" id="ap-submit">Approve &amp; Assign Code</button>
-            <button type="button" class="btn btn--outline" id="ap-check">Check code availability</button>
+          <div style="margin-top:1.1rem">
+            <button type="submit" class="btn btn--green" id="ap-signin">View Pending Applications</button>
           </div>
-          <p id="ap-status" class="form-status" role="status" aria-live="polite"></p>
+          <p id="ap-gate-status" class="form-status" role="status" aria-live="polite"></p>
         </form>
+      </div>
+
+      <!-- Signed in: pending applications + assignment form -->
+      <div id="approve-main" hidden>
+
+        <div class="admin-meta">
+          <h2 style="font-size:1.3rem;margin:0">Pending applications (<span id="ap-count">0</span>)</h2>
+          <button type="button" class="btn btn--outline" id="ap-refresh">Refresh</button>
+        </div>
+
+        <p id="ap-none" class="form-note" hidden>No pending applications.</p>
+        <div id="ap-list" class="app-list"></div>
+
+        <div class="form-card" id="approve-card" style="margin-top:2rem">
+          <h2 style="font-size:1.3rem">Assign a referral code</h2>
+          <p class="form-note" style="margin-top:0">
+            Only codes approved here earn commission. A referral link using a code that hasn&rsquo;t
+            been approved is quietly ignored &mdash; so assign the code <em>before</em> the affiliate
+            starts sharing their link.
+          </p>
+
+          <form id="approve-form">
+            <div class="form-grid">
+              <div class="field">
+                <label for="ap-name">Affiliate name <span class="req">*</span></label>
+                <input id="ap-name" name="name" type="text" required autocomplete="off" />
+              </div>
+              <div class="field">
+                <label for="ap-email">Affiliate email <span class="req">*</span></label>
+                <input id="ap-email" name="email" type="email" required autocomplete="off" />
+              </div>
+              <div class="field field--full">
+                <label for="ap-code">Referral code to assign <span class="req">*</span></label>
+                <input id="ap-code" name="code" type="text" required autocomplete="off"
+                       placeholder="e.g. ADEBAYO01" pattern="[A-Za-z0-9]{3,32}"
+                       title="Letters and digits only, 3–32 characters, no spaces" />
+                <p class="form-note" style="margin:.35rem 0 0">
+                  Letters and digits only, no spaces. Stored in upper case, so links work
+                  whichever case the affiliate types.
+                </p>
+                <p id="ap-code-status" class="form-status" role="status" aria-live="polite" style="margin-top:.4rem"></p>
+              </div>
+            </div>
+
+            <p id="ap-linked" class="form-note" hidden></p>
+
+            <div style="margin-top:1.1rem;display:flex;gap:.6rem;flex-wrap:wrap">
+              <button type="submit" class="btn btn--green" id="ap-submit">Approve &amp; Assign Code</button>
+              <button type="button" class="btn btn--outline" id="ap-check">Check code availability</button>
+              <button type="button" class="btn btn--outline" id="ap-clear" hidden>Clear selection</button>
+            </div>
+            <p id="ap-status" class="form-status" role="status" aria-live="polite"></p>
+          </form>
+        </div>
       </div>
 
       <!-- Success -->
@@ -107,6 +133,6 @@
     </div>
   </section>
 
-  <script src="js/admin-approve-affiliate.js?v=8"></script>
+  <script src="js/admin-approve-affiliate.js?v=9"></script>
 </body>
 </html>

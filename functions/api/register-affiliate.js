@@ -134,5 +134,45 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: "Could not save the affiliate record." }, 500);
   }
 
-  return json({ ok: true, code, name, email, approved_at: record.approved_at });
+  /* If this approval came from a pending application, mark that
+     application approved so it drops off the pending list and can't be
+     approved a second time by mistake.
+
+     The key is checked against the "application:" prefix before being
+     written to: it arrives from the browser, and without that guard a
+     crafted request could overwrite any key in the namespace —
+     an affiliate record or a referral sale included.
+
+     A failure here is deliberately not fatal. The affiliate record above
+     is already saved and is the thing that matters; the worst case is a
+     stale row in the pending list, which is better than reporting the
+     whole approval as failed and inviting a duplicate attempt. */
+  let applicationUpdated = false;
+  const applicationKey = typeof body.application_key === "string" ? body.application_key.trim() : "";
+  if (applicationKey && applicationKey.startsWith("application:") && applicationKey.length <= 200) {
+    try {
+      const raw = await env.REFERRALS_KV.get(applicationKey);
+      if (raw) {
+        const application = JSON.parse(raw);
+        application.status = "approved";
+        application.approved_code = code;
+        application.approved_at = record.approved_at;
+        await env.REFERRALS_KV.put(applicationKey, JSON.stringify(application), {
+          metadata: { s: "approved", n: String(application.name || "").slice(0, 80), at: record.approved_at }
+        });
+        applicationUpdated = true;
+      }
+    } catch (err) {
+      applicationUpdated = false;
+    }
+  }
+
+  return json({
+    ok: true,
+    code,
+    name,
+    email,
+    approved_at: record.approved_at,
+    application_updated: applicationUpdated
+  });
 }
