@@ -559,6 +559,30 @@ body.home .site-header .brand__logo { height: clamp(48px, 7vw, 72px); }
 .share__feedback { margin: 0; padding: 0 .7rem; font-size: .8rem; color: var(--green-700); }
 .share__feedback:empty { display: none; }
 
+/* ---------- Admin hub tiles (admin.html) ---------- */
+.admin-tile {
+  display: flex; flex-direction: column;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 1.6rem 1.5rem;
+  color: var(--ink);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.admin-tile:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--green-600);
+  text-decoration: none;
+}
+.admin-tile h2 { font-size: 1.2rem; margin-bottom: .4rem; }
+.admin-tile p { color: var(--muted); font-size: .95rem; margin-bottom: 1rem; }
+.admin-tile__go { margin-top: auto; font-weight: 700; color: var(--green-700); font-size: .95rem; }
+
+/* Cross-links between the admin pages. */
+.admin-links { display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: center; }
+
 /* ---------- Affiliate stat cards (my-stats.html) ---------- */
 .stat-grid {
   display: grid; grid-template-columns: repeat(3, 1fr);
