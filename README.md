@@ -296,3 +296,86 @@ dispatching any order, don't rely solely on receiving the confirmation email.
   Function** that calls Flutterwave's **Verify Transaction API** with the
   secret key, server-side, before treating an order as confirmed. This is a
   recommended fast-follow, not a blocker for launching checkout today.
+
+---
+
+## 6. Referral / affiliate programme
+
+Distributors and affiliates get a referral link. When someone arrives via
+that link and completes a purchase, the order is logged against their code
+and **8% of the order subtotal** (delivery fees excluded) is recorded as
+commission owed.
+
+### Creating a referral link for a distributor
+Append `?ref=THEIRCODE` to any page URL — usually the homepage:
+
+```
+https://xnyfarms.com/?ref=ADEBAYO01
+https://xnyfarms.com/products.html?ref=LAGOSDIST
+```
+
+**No code changes are needed per affiliate.** Codes are free-form; just
+give each distributor a unique one. Valid characters are letters, digits,
+hyphen and underscore, up to 64 characters — anything else is ignored.
+
+The code is stored in the visitor's browser (`localStorage`, key
+`xny_ref_code`) so it survives them browsing around and checking out. A
+later visit *without* `?ref=` keeps the stored code, so a referred customer
+who returns via a plain link still counts. A visit *with* a different
+`?ref=` replaces it (last referrer wins).
+
+### ⚠️ Manual setup you must do yourself (the feature is inert until you do)
+These are Cloudflare dashboard steps — they can't be done from the repo:
+
+1. **Create the KV namespace.** Cloudflare dashboard → **Workers & Pages →
+   KV → Create a namespace**, name it `REFERRALS_KV`.
+2. **Bind it to this Pages project.** Your Pages project → **Settings →
+   Functions → KV namespace bindings → Add binding**. The *Variable name*
+   must be exactly **`REFERRALS_KV`** (this is what the code looks for);
+   select the namespace you just created.
+3. **Set the report password.** Pages project → **Settings → Environment
+   variables → Add variable**, name **`ADMIN_REPORT_PASSWORD`**, value =
+   a password of your choosing. Mark it **encrypted / secret**.
+4. **Redeploy** the project so the new bindings take effect.
+
+Until steps 1–3 are done, the endpoints return a clear 503 naming the
+missing piece rather than failing silently — so if the report page says
+"REFERRALS_KV is not bound", that's the step you've missed.
+
+### Viewing the report
+Go to **`/admin-referrals.html`** (e.g. `https://xnyfarms.com/admin-referrals.html`)
+and enter the `ADMIN_REPORT_PASSWORD`. You'll get a table of
+**Code | Number of Orders | Total Sales | Commission Owed**.
+
+The page is deliberately **not linked from any nav or menu** — bookmark it.
+It carries a `noindex, nofollow` meta tag and an `X-Robots-Tag` header (see
+`_headers`) so search engines skip it. Note that this is *obscurity plus a
+password*, not real access control — anyone who learns the URL still needs
+the password, so use a strong one.
+
+### How it works
+| Piece | What it does |
+| --- | --- |
+| `js/referral.js` | Loaded on every page. Captures `?ref=`, stores it, and POSTs completed orders to the logging endpoint. |
+| `functions/api/log-referral.js` | Pages Function. Validates the payload, computes 8% commission, writes to KV as `referral:{code}:{tx_ref}`. |
+| `functions/api/get-referrals.js` | Pages Function. Password-checks, then aggregates all KV records by code. |
+| `admin-referrals.html` + `js/admin-referrals.js` | The report page. |
+
+Logging happens **after** the customer's payment confirmation is already on
+screen, is never awaited, and fails silently (console only) — a logging
+outage can never delay or break a real checkout.
+
+Records are keyed by `tx_ref`, so a retry or a page refresh rewrites the
+same record instead of double-counting a sale.
+
+### ⚠️ Trust: verify before you pay commission
+`/api/log-referral` is public and unauthenticated, and it trusts the order
+amount the browser sends it. That's the same trust boundary the checkout
+already has (payment success comes from Flutterwave's client-side callback
+and isn't server-verified — see Section 5). In practice that means someone
+who discovers the endpoint could POST fabricated sales.
+
+**Reconcile each `tx_ref` against your Flutterwave dashboard before paying
+out.** The proper fix is the same fast-follow recommended in Section 5:
+verify the transaction server-side with Flutterwave's Verify Transaction
+API using the secret key, and record only what that call confirms.

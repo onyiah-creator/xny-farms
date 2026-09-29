@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Referral Report — XNY Farms Limited</title>
+  <!-- Internal tool: keep it out of search results entirely. The same
+       is enforced at the header level in _headers (X-Robots-Tag). -->
+  <meta name="robots" content="noindex, nofollow, noarchive" />
+  <link rel="icon" href="assets/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+  <link rel="stylesheet" href="css/styles.css?v=5" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container">
+      <nav class="nav" aria-label="Primary">
+        <a href="index.html" class="brand" aria-label="XNY Farms Limited home">
+          <img src="assets/xny-logo.png" alt="XNY Farms — ...meeting your agricultural needs." class="brand__logo" />
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="page-hero">
+    <div class="container">
+      <p class="eyebrow" style="color:var(--amber-400)">Internal &mdash; Not Public</p>
+      <h1>Referral Report</h1>
+      <p>Commission owed to distributors and affiliates, by referral code.</p>
+    </div>
+  </section>
+
+  <section class="section section--white">
+    <div class="container admin-wrap">
+
+      <!-- Password gate -->
+      <div class="form-card" id="admin-gate">
+        <h2 style="font-size:1.3rem">Sign in</h2>
+        <form id="admin-form">
+          <div class="field">
+            <label for="admin-password">Report password <span class="req">*</span></label>
+            <input id="admin-password" name="password" type="password" required autocomplete="current-password" />
+          </div>
+          <div style="margin-top:1.1rem">
+            <button type="submit" class="btn btn--green" id="admin-submit">View Report</button>
+          </div>
+          <p id="admin-status" class="form-status" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+
+      <!-- Report -->
+      <div id="admin-report" hidden>
+        <div class="admin-meta">
+          <p class="form-note" style="margin:0">
+            Commission rate: <strong id="admin-rate">&mdash;</strong> of order subtotal &middot;
+            Generated <span id="admin-generated">&mdash;</span>
+          </p>
+          <button type="button" class="btn btn--outline" id="admin-refresh">Refresh</button>
+        </div>
+
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th scope="col">Code</th>
+                <th scope="col" class="num">Number of Orders</th>
+                <th scope="col" class="num">Total Sales (NGN)</th>
+                <th scope="col" class="num">Commission Owed (NGN)</th>
+              </tr>
+            </thead>
+            <tbody id="admin-rows"></tbody>
+            <tfoot>
+              <tr>
+                <th scope="row">All codes</th>
+                <td class="num" id="admin-total-orders">0</td>
+                <td class="num" id="admin-total-sales">&#8358;0</td>
+                <td class="num" id="admin-total-commission">&#8358;0</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <p id="admin-empty" class="form-note" hidden>No referral orders have been logged yet.</p>
+
+        <p class="form-note">
+          <strong>Total Sales</strong> is the sum of order subtotals, excluding delivery fees &mdash;
+          that is the amount commission is calculated on. Before paying commission, reconcile each
+          order against the Flutterwave dashboard: these records are written by the customer's browser
+          and are not independently verified.
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <script src="js/admin-referrals.js?v=5"></script>
+</body>
+</html>

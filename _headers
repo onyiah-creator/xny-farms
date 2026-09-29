@@ -18,3 +18,8 @@
   Cache-Control: public, max-age=300, must-revalidate
 /js/*
   Cache-Control: public, max-age=300, must-revalidate
+
+# Internal referral report — keep it out of search indexes entirely.
+# (admin-referrals.html also carries a noindex meta tag.)
+/admin-referrals.html
+  X-Robots-Tag: noindex, nofollow, noarchive

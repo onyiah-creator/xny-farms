@@ -37,6 +37,27 @@
   // Never put the secret key here.
   var FLUTTERWAVE_PUBLIC_KEY = "FLWPUBK-a3e668407ea4d1608e40f8bac749ff69-X";
 
+  // Payment methods offered inside the Flutterwave modal. A single
+  // comma-separated string — per Flutterwave's own SDK typings
+  // (flutterwave-react-v3):
+  //   "This specifies the payment options to be displayed
+  //    e.g - [card, mobilemoney, ussd] and so on.
+  //    Defaults to 'card, ussd, mobilemoney'"
+  //
+  // TO ADD QR PAYMENTS: Flutterwave's QR product is NIBSS QR, which their
+  // docs and SDK README call "NQR" (not "qr"), so the token here is most
+  // likely `nqr` — but that could NOT be verified against
+  // developer.flutterwave.com, which is unreachable from the environment
+  // this was written in, and their typings are `'card, ussd, mobilemoney'
+  // | string`, i.e. they enumerate nothing and won't reject a bad token.
+  // Confirm the exact string in the Flutterwave dashboard/docs, then add
+  // it to the list below. Two dashboard-side steps also apply:
+  //   1. NQR must be enabled as a payment method on the account.
+  //   2. Flutterwave only honours payment_options when "Enable Dashboard
+  //      Payment Options" is UNCHECKED in Account Settings — with it on,
+  //      the dashboard's own selection wins and this string is ignored.
+  var PAYMENT_OPTIONS = "card, banktransfer, ussd";
+
   var ORDER_NOTIFICATION_EMAIL = "xnyfarms@gmail.com";
   // Holds the chosen fulfilment option: "pickup" | "lagos" | "other".
   // Key name kept from when the choice was delivery-only, so a shopper
@@ -323,6 +344,19 @@
       sendConfirmationEmail(order);
     };
 
+    // Referral logging — fire-and-forget, only once the success message is
+    // already on screen. Never awaited, and it swallows its own errors, so
+    // a logging outage can't delay or break a paying customer's checkout.
+    // The commissionable amount is the SUBTOTAL, excluding delivery.
+    if (window.XNYReferral) {
+      window.XNYReferral.logOrder({
+        order_total_ngn: order.subtotal,
+        gross_total_ngn: order.total,
+        tx_ref: order.txRef,
+        timestamp: new Date().toISOString()
+      });
+    }
+
     // Fire the order-notification email automatically so the business
     // doesn't depend on the customer remembering to click "resend" —
     // but the button above still exists in case the mail client didn't
@@ -371,7 +405,7 @@
         tx_ref: txRef,
         amount: total,
         currency: "NGN",
-        payment_options: "card, banktransfer, ussd",
+        payment_options: PAYMENT_OPTIONS,
         customer: {
           email: form.elements.email.value,
           phone_number: form.elements.phone.value,

@@ -516,6 +516,37 @@ body.home .site-header .brand__logo { height: clamp(48px, 7vw, 72px); }
   .cart-layout { grid-template-columns: 1fr; }
 }
 
+/* ---------- Admin referral report (admin-referrals.html) ---------- */
+.admin-wrap { max-width: 860px; }
+.admin-meta {
+  display: flex; flex-wrap: wrap; gap: 1rem;
+  align-items: center; justify-content: space-between;
+  margin-bottom: 1.2rem;
+}
+.admin-table-wrap { overflow-x: auto; }
+.admin-table {
+  width: 100%; border-collapse: collapse;
+  background: var(--white);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  overflow: hidden;
+}
+.admin-table th, .admin-table td {
+  padding: .75rem .9rem; text-align: left;
+  border-bottom: 1px solid var(--line); font-size: .95rem;
+}
+.admin-table thead th {
+  background: var(--green-100); color: var(--green-900);
+  font-family: var(--font-head); font-size: .9rem;
+}
+.admin-table tbody th { font-family: var(--font-head); color: var(--green-800); }
+.admin-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.admin-table .commission { font-weight: 700; color: var(--green-800); }
+.admin-table tbody tr:hover { background: var(--cream); }
+.admin-table tfoot th, .admin-table tfoot td {
+  border-bottom: 0; border-top: 2px solid var(--line);
+  background: var(--cream-dark); font-weight: 700; color: var(--green-900);
+}
+
 /* ---------- Footer ---------- */
 .site-footer { background: var(--green-900); color: #d9dcc9; padding: 3rem 0 1.5rem; }
 .site-footer a { color: var(--amber-100); }
