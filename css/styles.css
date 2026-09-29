@@ -60,6 +60,10 @@
    sets el.hidden = true. This makes the hidden attribute actually reliable. */
 [hidden] { display: none !important; }
 html { scroll-behavior: smooth; }
+/* The header is sticky, so an element jumped to via #anchor would otherwise
+   come to rest underneath it. Keep a gap slightly larger than the tallest
+   header (~84px) clear above whatever the fragment targets. */
+:target { scroll-margin-top: 104px; }
 body {
   margin: 0;
   font-family: var(--font-body);
@@ -515,6 +519,45 @@ body.home .site-header .brand__logo { height: clamp(48px, 7vw, 72px); }
 @media (max-width: 760px) {
   .cart-layout { grid-template-columns: 1fr; }
 }
+
+/* ---------- Product share button ---------- */
+.share { position: relative; display: inline-flex; }
+.share__btn {
+  display: inline-flex; align-items: center; gap: .4rem;
+  background: transparent;
+  border: 2px solid var(--line);
+  color: var(--green-800);
+  border-radius: 999px;
+  padding: .55rem 1rem;
+  font: inherit; font-size: .9rem; font-weight: 700;
+  cursor: pointer;
+  transition: background .2s ease, border-color .2s ease, color .2s ease;
+}
+.share__btn:hover { background: var(--green-100); border-color: var(--green-600); color: var(--green-900); }
+.share__btn svg { width: 17px; height: 17px; display: block; }
+
+.share__menu {
+  position: absolute; bottom: calc(100% + .5rem); left: 0;
+  z-index: 20;
+  min-width: 190px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: .35rem;
+}
+.share__item {
+  display: block; width: 100%;
+  padding: .55rem .7rem;
+  border: 0; background: transparent;
+  border-radius: var(--radius-sm);
+  font: inherit; font-size: .9rem; text-align: left;
+  color: var(--ink); cursor: pointer;
+}
+.share__item:hover { background: var(--green-100); color: var(--green-900); text-decoration: none; }
+.share__item--copy { border-top: 1px solid var(--line); border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+.share__feedback { margin: 0; padding: 0 .7rem; font-size: .8rem; color: var(--green-700); }
+.share__feedback:empty { display: none; }
 
 /* ---------- Admin referral report (admin-referrals.html) ---------- */
 .admin-wrap { max-width: 860px; }

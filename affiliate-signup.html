@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Contact — XNY Farms Limited</title>
-  <meta name="description" content="Contact XNY Farms Limited. Find our Nigerian office address, phone, email and send us a message about retail or wholesale enquiries." />
+  <title>Become an Affiliate — XNY Farms Limited</title>
+  <meta name="description" content="Join the XNY Farms affiliate programme and earn 8% commission on every completed sale made through your personal referral link." />
   <link rel="icon" href="assets/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png" />
@@ -50,105 +50,93 @@
 
   <section class="page-hero">
     <div class="container">
-      <p class="eyebrow" style="color:var(--amber-400)">Contact Us</p>
-      <h1>We&rsquo;d love to hear from you</h1>
-      <p>Questions about our products, an order or a wholesale supply arrangement? Reach us using the details below or send a message and our team will respond promptly.</p>
+      <p class="eyebrow" style="color:var(--amber-400)">Affiliate Programme</p>
+      <h1>Earn with XNY Farms</h1>
+      <p>Share the products you already believe in, and earn on every sale you send our way.</p>
     </div>
   </section>
 
   <section class="section section--cream">
     <div class="container grid grid--2" style="align-items:start">
 
-      <!-- Contact details -->
+      <!-- How it works -->
       <div>
-        <p class="eyebrow">Reach Us Directly</p>
-        <h2>Company Contact Details</h2>
-        <ul class="info-list">
-          <li>
-            <span class="info-ic">&#128205;</span>
-            <span><strong>Office Address</strong>41 Babaponmile Street, Onipetesi, Mangoro, Ikeja, Lagos<br />Nigeria</span>
-          </li>
-          <li>
-            <span class="info-ic">&#128222;</span>
-            <span><strong>Phone</strong><a href="tel:+2348060138299">+234 806 013 8299</a></span>
-          </li>
-          <li>
-            <span class="info-ic">&#9993;</span>
-            <span><strong>Email</strong><a href="mailto:xnyfarms@gmail.com">xnyfarms@gmail.com</a></span>
-          </li>
-          <li>
-            <span class="info-ic">&#128336;</span>
-            <span><strong>Business Hours</strong>Monday &ndash; Friday: 9:00 AM &ndash; 5:00 PM (WAT)<br />Saturday &ndash; Sunday: Closed</span>
-          </li>
-        </ul>
-
-        <h3 style="margin-top:1.5rem">Find Us</h3>
-        <!-- Google Map — placeholder centred on Lagos, Nigeria.
-             Replace the src with an embed for your real office location
-             (Google Maps → Share → Embed a map → copy the iframe src). -->
-        <div class="map-embed">
-          <iframe
-            title="XNY Farms Limited location (placeholder — Lagos, Nigeria)"
-            src="https://www.google.com/maps?q=Lagos,Nigeria&output=embed"
-            loading="lazy"
-            referrerpolicy="no-referrer-when-downgrade"
-            allowfullscreen></iframe>
+        <p class="eyebrow">How It Works</p>
+        <h2>Join our affiliate programme</h2>
+        <p class="lead">Join our affiliate program and earn <strong>8% commission</strong> on every completed sale through your referral link. Fill out the form and we&rsquo;ll be in touch with your personal referral code.</p>
+        <ol class="stack" style="padding-left:1.1rem">
+          <li><strong>Apply.</strong> Send us your details using the form.</li>
+          <li><strong>We review your application.</strong> Our team reviews every application personally and replies by email.</li>
+          <li><strong>Get your code and link.</strong> If approved, we&rsquo;ll email you your own referral code and a ready-to-share link.</li>
+          <li><strong>Share and earn.</strong> Every completed sale through your link earns you 8% of the order value.</li>
+        </ol>
+        <div class="placeholder-note">
+          <strong>Commission is 8% of the order subtotal</strong> (the value of the products ordered), calculated before any delivery fee is added.
         </div>
-        <p class="form-note">Map shows a placeholder Lagos location. Replace the embed with your exact office coordinates before going live.</p>
+        <p><strong>Already an affiliate?</strong> Use the <strong>Share</strong> button on any product to send your own tracked link &mdash; see our <a href="products.html">products</a>.</p>
       </div>
 
-      <!-- Contact form -->
+      <!-- Application form -->
       <div class="form-card">
-        <h2 style="font-size:1.4rem">Send Us a Message</h2>
-        <p class="lead" style="font-size:1rem">Fill in the form and we&rsquo;ll get back to you as soon as we can.</p>
+        <h2 style="font-size:1.4rem">Affiliate Application</h2>
+        <p class="lead" style="font-size:1rem">Tell us a little about you and where to send your commission.</p>
         <!--
-          FORM WIRING: mailto: only, no backend. On submit, js/main.js
-          builds a mailto: link from the field values below and opens
-          the visitor's email client with the message pre-filled.
+          FORM WIRING: mailto: only, no backend — same pattern as the
+          contact and wholesale forms. On submit, js/main.js builds a
+          mailto: link from the field values below and opens the
+          visitor's email client with the application pre-filled.
+
+          NOTE: this form does NOT assign referral codes. Applications
+          are reviewed manually and the code is emailed back to the
+          applicant by hand — there is deliberately no auto-approval or
+          code-generation logic anywhere in this project.
         -->
         <form data-xny-form
               data-mailto="xnyfarms@gmail.com"
-              data-subject="Contact Form Submission — XNY Farms">
+              data-subject="Affiliate Signup Application — XNY Farms">
           <div class="form-grid">
-            <div class="field">
-              <label for="c-name">Full name <span class="req">*</span></label>
-              <input id="c-name" name="name" data-label="Name" type="text" required autocomplete="name" />
+            <div class="field field--full">
+              <label for="a-name">Full name <span class="req">*</span></label>
+              <input id="a-name" name="name" data-label="Full Name" type="text" required autocomplete="name" />
             </div>
             <div class="field">
-              <label for="c-company">Company <span style="color:var(--muted);font-weight:400">(optional)</span></label>
-              <input id="c-company" name="company" data-label="Company" type="text" autocomplete="organization" />
+              <label for="a-email">Email <span class="req">*</span></label>
+              <input id="a-email" name="email" data-label="Email" type="email" required autocomplete="email" />
             </div>
             <div class="field">
-              <label for="c-email">Email <span class="req">*</span></label>
-              <input id="c-email" name="email" data-label="Email" type="email" required autocomplete="email" />
+              <label for="a-phone">Phone number <span class="req">*</span></label>
+              <input id="a-phone" name="phone" data-label="Phone" type="tel" required autocomplete="tel" />
+            </div>
+
+            <div class="field field--full">
+              <h3 style="font-size:1rem;margin:.6rem 0 0">Payout details</h3>
+              <p class="form-note" style="margin:.2rem 0 0">Where we&rsquo;ll send your commission. We only use these details to pay you.</p>
             </div>
             <div class="field">
-              <label for="c-phone">Phone <span class="req">*</span></label>
-              <input id="c-phone" name="phone" data-label="Phone" type="tel" required autocomplete="tel" />
+              <label for="a-bank">Bank name <span class="req">*</span></label>
+              <input id="a-bank" name="bank_name" data-label="Bank Name" type="text" required autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="a-account-number">Bank account number <span class="req">*</span></label>
+              <input id="a-account-number" name="account_number" data-label="Account Number" type="text" inputmode="numeric" required autocomplete="off" />
             </div>
             <div class="field field--full">
-              <label for="c-product">Product interest</label>
-              <select id="c-product" name="product_interest" data-label="Product Interest">
-                <option value="">Select a topic…</option>
-                <option>ASHE Honey</option>
-                <option>Palm Oil</option>
-                <option>Agricultural Produce</option>
-                <option>Value-Added Products</option>
-                <option>Wholesale / Bulk supply</option>
-                <option>General enquiry</option>
-              </select>
+              <label for="a-account-name">Account holder name <span class="req">*</span></label>
+              <input id="a-account-name" name="account_name" data-label="Account Holder Name" type="text" required autocomplete="off" />
             </div>
+
             <div class="field field--full">
-              <label for="c-message">Message <span class="req">*</span></label>
-              <textarea id="c-message" name="message" data-label="Message" required placeholder="How can we help you?"></textarea>
+              <label for="a-promotion">How do you plan to promote XNY Farms products? <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+              <textarea id="a-promotion" name="promotion_plan" data-label="Promotion Plan" placeholder="e.g. WhatsApp groups, Instagram, a shop or stall, word of mouth in my area…"></textarea>
             </div>
           </div>
           <div style="margin-top:1.2rem">
-            <button type="submit" class="btn btn--green">Send Message</button>
+            <button type="submit" class="btn btn--green">Submit Application</button>
           </div>
           <p class="form-status" role="status" aria-live="polite"></p>
-          <p class="form-note">This form opens your email app with the message pre-filled. If nothing opens (common on some mobile devices), please email us directly at <a href="mailto:xnyfarms@gmail.com">xnyfarms@gmail.com</a>.</p>
-          <p class="form-note">By submitting this form you agree to our <a href="privacy-policy.html">Privacy Policy</a> and <a href="ndpr-notice.html">NDPR Notice</a>. We&rsquo;ll only use your details to respond to your enquiry.</p>
+          <p class="form-note">This form opens your email app with the application pre-filled. If nothing opens (common on some mobile devices), please email us directly at <a href="mailto:xnyfarms@gmail.com">xnyfarms@gmail.com</a>.</p>
+          <p class="form-note">Your application is sent as a normal email from your own email app, so please only include account details you&rsquo;re comfortable sending by email. We never ask for your card details, PIN or online banking password &mdash; only the account number we should pay your commission into.</p>
+          <p class="form-note">By submitting this form you agree to our <a href="privacy-policy.html">Privacy Policy</a> and <a href="ndpr-notice.html">NDPR Notice</a>. We&rsquo;ll only use your details to assess your application and pay commission you earn.</p>
         </form>
       </div>
     </div>
