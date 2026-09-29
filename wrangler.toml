@@ -11,3 +11,10 @@
 name = "xny-farms"
 pages_build_output_dir = "."
 compatibility_date = "2025-01-01"
+
+# KV namespace backing the referral / affiliate programme (see README
+# section 6). The Pages Functions in functions/api/ read and write it via
+# env.REFERRALS_KV, so the binding name below must stay exactly that.
+[[kv_namespaces]]
+binding = "REFERRALS_KV"
+id = "9cfbe8d5b6d44927828e0f2ddf6bec6b"
