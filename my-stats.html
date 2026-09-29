@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Terms &amp; Conditions — XNY Farms Limited</title>
-  <meta name="description" content="Terms and conditions governing the use of the XNY Farms Limited website and the purchase of its products." />
+  <title>My Affiliate Stats — XNY Farms Limited</title>
+  <meta name="description" content="Check your XNY Farms affiliate referral stats — orders, total sales and commission earned." />
   <link rel="icon" href="assets/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png" />
@@ -50,60 +50,77 @@
 
   <section class="page-hero">
     <div class="container">
-      <p class="eyebrow" style="color:var(--amber-400)">Legal</p>
-      <h1>Terms &amp; Conditions</h1>
-      <p>The terms that govern your use of this website and any purchase of XNY Farms products.</p>
+      <p class="eyebrow" style="color:var(--amber-400)">Affiliate Programme</p>
+      <h1 id="stats-heading">My Affiliate Stats</h1>
+      <p>Your referral performance with XNY Farms.</p>
     </div>
   </section>
 
   <section class="section section--white">
-    <div class="container legal">
-      <p class="updated"><strong>Last Updated:</strong> July 9, 2026</p>
+    <div class="container admin-wrap">
 
-      <h2>1. Introduction</h2>
-      <p>These Terms &amp; Conditions (&ldquo;Terms&rdquo;) govern your use of the XNY Farms Limited website [xnyfarms.com] and any purchase, wholesale inquiry, or interaction with our services. By accessing or using our website, you agree to be bound by these Terms. If you do not agree, please do not use our website.</p>
+      <!-- Loading -->
+      <p id="stats-loading" class="lead" hidden>Loading your stats&hellip;</p>
 
-      <h2>2. About XNY Farms Limited</h2>
-      <p>XNY Farms Limited is a company registered in Nigeria under the Companies and Allied Matters Act (CAC Registration Number: 1107007), engaged in the production, processing, and sale of honey, palm oil, and other agricultural produce, on both retail and wholesale bases.</p>
+      <!-- No code in the URL -->
+      <div id="stats-nocode" hidden>
+        <div class="form-card">
+          <h2 style="font-size:1.3rem">Enter your referral code</h2>
+          <p>Add your referral code to the web address to check your stats &mdash; for example
+            <code>my-stats.html?code=YOURCODE</code>. The link in your welcome email already
+            has your code in it.</p>
+          <form id="stats-form">
+            <div class="field">
+              <label for="stats-code">Referral code</label>
+              <input id="stats-code" name="code" type="text" required autocomplete="off" placeholder="e.g. ADEBAYO01" />
+            </div>
+            <div style="margin-top:1rem">
+              <button type="submit" class="btn btn--green">Check My Stats</button>
+            </div>
+          </form>
+          <p class="form-note">Not an affiliate yet? <a href="affiliate-signup.html">Apply to join the programme</a>.</p>
+        </div>
+      </div>
 
-      <h2>3. Products and Descriptions</h2>
-      <p>We make every effort to accurately describe our products, including ingredients, weight, packaging, and pricing. However, we do not warrant that product descriptions or other content on this site are entirely accurate, complete, or error-free. Natural agricultural products may vary slightly in appearance, color, or texture between batches.</p>
+      <!-- Results -->
+      <div id="stats-results" hidden>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <p class="stat-card__label">Orders</p>
+            <p class="stat-card__value" id="stat-orders">0</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Total Sales</p>
+            <p class="stat-card__value" id="stat-sales">&#8358;0</p>
+          </div>
+          <div class="stat-card stat-card--accent">
+            <p class="stat-card__label">Commission Earned</p>
+            <p class="stat-card__value" id="stat-commission">&#8358;0</p>
+          </div>
+        </div>
 
-      <h2>4. Orders and Payment</h2>
-      <ul>
-        <li>All orders placed through our website are subject to acceptance and availability.</li>
-        <li>Prices are listed in Nigerian Naira (&#8358;) unless otherwise stated, and are subject to change without prior notice.</li>
-        <li>Payment is processed securely through our third-party payment partners (e.g., Flutterwave, Paystack). We do not store your full payment card details.</li>
-        <li>For wholesale orders, pricing, quantities, and payment terms will be agreed upon separately via invoice or supply agreement.</li>
-      </ul>
+        <p id="stats-empty" class="lead" hidden>No referral activity found yet for this code. Share your link and your first orders will show up here.</p>
 
-      <h2>5. Delivery</h2>
-      <ul>
-        <li>Delivery timelines provided are estimates and not guaranteed. XNY Farms Limited is not liable for delays caused by third-party logistics providers, weather, or circumstances beyond our reasonable control.</li>
-        <li>Risk of loss and title for products pass to you upon delivery to the address provided at checkout.</li>
-      </ul>
+        <div class="admin-detail">
+          <p><strong>Your referral link</strong><br /><code id="stats-link"></code></p>
+        </div>
 
-      <h2>6. Wholesale Terms</h2>
-      <p>Wholesale and bulk supply arrangements are subject to separate agreements, minimum order quantities, and payment terms as communicated directly to the wholesale customer. These Terms apply in addition to, and not in place of, any such wholesale agreement.</p>
+        <p class="form-note">
+          Commission is <strong>8% of the order subtotal</strong> (before delivery), and is
+          confirmed and paid after XNY Farms verifies each order. Figures here are a running
+          tally, not a final statement.
+        </p>
+      </div>
 
-      <h2>7. Intellectual Property</h2>
-      <p>All content on this website &mdash; including text, graphics, logos, images, and the XNY Farms and ASHE Honey brand names &mdash; is the property of XNY Farms Limited and is protected by applicable intellectual property laws. You may not reproduce, distribute, or use this content without our prior written consent.</p>
+      <!-- Error -->
+      <div id="stats-error" hidden>
+        <div class="form-card">
+          <h2 style="font-size:1.3rem">We couldn&rsquo;t load those stats</h2>
+          <p id="stats-error-message"></p>
+          <p class="form-note">If this keeps happening, email us at <a href="mailto:xnyfarms@gmail.com">xnyfarms@gmail.com</a> with your referral code.</p>
+        </div>
+      </div>
 
-      <h2>8. Digital Innovation Division</h2>
-      <p>XNY Farms Limited is expanding beyond agriculture into digital technology services as part of its long-term growth strategy, including the development of WatchVisionAI, an AI-powered entertainment discovery platform currently under active development. WatchVisionAI operates under its own separate terms of use and privacy policy, available at <a href="https://watchvisionai.com" target="_blank" rel="noopener">watchvisionai.com</a>. These Terms govern only the agricultural business activities of XNY Farms Limited.</p>
-
-      <h2>9. Limitation of Liability</h2>
-      <p>To the fullest extent permitted by Nigerian law, XNY Farms Limited shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of our website or products, except in cases of gross negligence or willful misconduct.</p>
-
-      <h2>10. Governing Law</h2>
-      <p>These Terms are governed by and construed in accordance with the laws of the Federal Republic of Nigeria. Any disputes arising under these Terms shall be subject to the exclusive jurisdiction of the Nigerian courts.</p>
-
-      <h2>11. Changes to These Terms</h2>
-      <p>We may revise these Terms from time to time. Continued use of our website after any changes constitutes acceptance of the revised Terms.</p>
-
-      <h2>12. Contact Us</h2>
-      <p>For questions regarding these Terms, please contact:</p>
-      <p>XNY Farms Limited<br />41 Babaponmile Street, Onipetesi, Mangoro, Ikeja, Lagos, Nigeria<br />Email: xnyfarms@gmail.com<br />Phone: +234 806 013 8299</p>
     </div>
   </section>
 
@@ -155,6 +172,7 @@
 
   <script src="js/referral.js?v=7"></script>
   <script src="js/cart.js?v=7"></script>
+  <script src="js/my-stats.js?v=7"></script>
   <script src="js/main.js?v=7"></script>
 </body>
 </html>

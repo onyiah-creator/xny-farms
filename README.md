@@ -342,6 +342,47 @@ Until steps 1–3 are done, the endpoints return a clear 503 naming the
 missing piece rather than failing silently — so if the report page says
 "REFERRALS_KV is not bound", that's the step you've missed.
 
+### Approving an affiliate (assigning their code)
+Go to **`/admin-approve-affiliate.html`** (also unlinked and noindexed) and
+enter the report password, the affiliate's name and email, and the code you
+want to give them. Codes are **letters and digits only** and are stored in
+upper case, so a link typed as `?ref=adebayo01` credits the same person as
+`?ref=ADEBAYO01`.
+
+The tool checks the code isn't already taken (there's a "Check code
+availability" button, and the server refuses a duplicate regardless), writes
+`affiliate:{CODE}` to KV, then **opens a pre-filled welcome email** in your
+own mail client containing their code, their referral link, a link to their
+stats page and a reminder of the 8% rate.
+
+**You still press send.** Nothing is emailed automatically — this project has
+no transactional email service. A future upgrade could send it for real via
+an email API such as [Resend](https://resend.com) or
+[SendGrid](https://sendgrid.com); that would need its own API key stored as a
+Pages secret, and is not required for any of this to work today.
+
+### ⚠️ Only approved codes earn commission
+`/api/log-referral` records a sale **only if `affiliate:{CODE}` exists** — so
+an invented `?ref=` in someone's URL bar can't manufacture commission. An
+unrecognised code is ignored silently: the customer sees nothing either way,
+and their checkout is unaffected.
+
+**The practical consequence: assign the code _before_ the affiliate starts
+sharing their link.** Sales made through a code that hasn't been approved yet
+are not recorded and cannot be recovered afterwards.
+
+### Affiliates checking their own stats
+Affiliates can see their own numbers at
+**`/my-stats.html?code=THEIRCODE`** — orders, total sales and commission
+earned. No password: the page needs only the code, and the endpoint returns
+that one code's totals and nothing else (no other affiliate's figures, no
+customer details, no order-level data). The link is included in the welcome
+email.
+
+Because it needs no password, anyone who is given or guesses a code can see
+that code's totals. It exposes no personal data, but if you consider earnings
+sensitive, issue codes that aren't easy to guess.
+
 ### Viewing the report
 Go to **`/admin-referrals.html`** (e.g. `https://xnyfarms.com/admin-referrals.html`)
 and enter the `ADMIN_REPORT_PASSWORD`. You'll get a table of
@@ -357,9 +398,17 @@ the password, so use a strong one.
 | Piece | What it does |
 | --- | --- |
 | `js/referral.js` | Loaded on every page. Captures `?ref=`, stores it, and POSTs completed orders to the logging endpoint. |
-| `functions/api/log-referral.js` | Pages Function. Validates the payload, computes 8% commission, writes to KV as `referral:{code}:{tx_ref}`. |
+| `functions/api/log-referral.js` | Pages Function. Validates the payload, **checks the code is an approved affiliate**, computes 8% commission, writes to KV as `referral:{CODE}:{tx_ref}`. |
 | `functions/api/get-referrals.js` | Pages Function. Password-checks, then aggregates all KV records by code. |
+| `functions/api/register-affiliate.js` | Pages Function. Password-checked code assignment; writes `affiliate:{CODE}`. |
+| `functions/api/get-my-stats.js` | Pages Function. Public, returns one code's own totals only. |
 | `admin-referrals.html` + `js/admin-referrals.js` | The report page. |
+| `admin-approve-affiliate.html` + `js/admin-approve-affiliate.js` | Approve an affiliate and assign their code. |
+| `my-stats.html` + `js/my-stats.js` | Affiliate self-check page. |
+| `affiliate-signup.html` | Public application form (mailto:, reviewed by hand). |
+
+KV keys used: `affiliate:{CODE}` (one per approved affiliate) and
+`referral:{CODE}:{tx_ref}` (one per recorded sale).
 
 Logging happens **after** the customer's payment confirmation is already on
 screen, is never awaited, and fails silently (console only) — a logging

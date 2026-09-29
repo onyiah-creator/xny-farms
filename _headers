@@ -23,3 +23,5 @@
 # (admin-referrals.html also carries a noindex meta tag.)
 /admin-referrals.html
   X-Robots-Tag: noindex, nofollow, noarchive
+/admin-approve-affiliate.html
+  X-Robots-Tag: noindex, nofollow, noarchive

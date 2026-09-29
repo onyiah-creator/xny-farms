@@ -13,6 +13,11 @@
  *   timestamp        string  ISO 8601 (optional; defaults to now)
  *   gross_total_ngn  number  optional, subtotal + delivery, for reconciliation
  *
+ * Only codes that have been APPROVED (an "affiliate:{CODE}" key exists,
+ * written by register-affiliate.js) are recorded. An unrecognised code is
+ * ignored silently — the response is still 200, because the caller is a
+ * customer's browser mid-checkout and must never see a failure.
+ *
  * Storage: Cloudflare KV, bound as REFERRALS_KV (create the namespace and
  * binding in the Pages project — see README, "Referral / affiliate
  * programme"). Records are keyed:
@@ -75,9 +80,28 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: "Body must be valid JSON." }, 400);
   }
 
-  const refCode = typeof body.ref_code === "string" ? body.ref_code.trim() : "";
-  if (!REF_CODE_PATTERN.test(refCode)) {
+  const rawRefCode = typeof body.ref_code === "string" ? body.ref_code.trim() : "";
+  if (!REF_CODE_PATTERN.test(rawRefCode)) {
     return json({ ok: false, error: "Invalid ref_code." }, 400);
+  }
+  // Normalised to uppercase to match how codes are stored at approval, so
+  // ?ref=adebayo01 and ?ref=ADEBAYO01 credit the same affiliate.
+  const refCode = rawRefCode.toUpperCase();
+
+  /* Only APPROVED affiliates earn commission. Without this check any
+     invented ?ref=WHATEVER would create a commission-earning record.
+     An unrecognised code is quietly ignored: this responds 200 with
+     logged:false rather than an error, because the caller is the
+     customer's browser mid-checkout — nothing here should ever surface
+     to them or look like a failed purchase. */
+  let approved;
+  try {
+    approved = await env.REFERRALS_KV.get(`affiliate:${refCode}`);
+  } catch (err) {
+    return json({ ok: false, error: "Could not verify the referral code." }, 500);
+  }
+  if (!approved) {
+    return json({ ok: true, logged: false, reason: "unrecognised referral code" });
   }
 
   const txRef = typeof body.tx_ref === "string" ? body.tx_ref.trim() : "";
@@ -126,5 +150,5 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: "Could not write the referral record." }, 500);
   }
 
-  return json({ ok: true, key, commission_ngn: commission });
+  return json({ ok: true, logged: true, key, commission_ngn: commission });
 }
