@@ -18,8 +18,8 @@
   // attribute. Keep prices here in sync with what's shown on
   // products.html / index.html.
   var PRODUCTS = {
-    "ashe-honey-50cl": { name: "ASHE Honey", size: "50cl", price: 6500, image: "assets/ashe-honey-50cl.png" },
-    "ashe-honey-1l": { name: "ASHE Honey", size: "1 Litre", price: 12000, image: "assets/ashe-honey-1l.png" },
+    "ashe-honey-50cl": { name: "ASHE Honey", size: "50cl", price: 7000, image: "assets/ashe-honey-50cl.png" },
+    "ashe-honey-1l": { name: "ASHE Honey", size: "1 Litre", price: 13000, image: "assets/ashe-honey-1l.png" },
     "palm-oil-50cl": { name: "Palm Oil", size: "50cl", price: 700, image: "assets/palm-oil-50cl.png" },
     "palm-oil-1l": { name: "Palm Oil", size: "1 Litre", price: 1300, image: "assets/palm-oil-1l.png" }
   };

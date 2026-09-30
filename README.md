@@ -84,7 +84,7 @@ this list before going live or submitting to Flutterwave:
 
 ### Products (`products.html`)
 - [x] **ASHE Honey** — live with real product photos, copy and pricing
-      (50cl at &#8358;6,500, 1 Litre at &#8358;12,000) on both `products.html`
+      (50cl at &#8358;7,000, 1 Litre at &#8358;13,000) on both `products.html`
       and the homepage featured-products preview.
 - [x] **Palm Oil** — live with real product photos, copy and pricing
       (50cl at &#8358;700, 1 Litre at &#8358;1,300) on `products.html`. The
