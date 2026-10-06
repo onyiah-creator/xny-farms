@@ -502,26 +502,33 @@ emails once the site is deployed. (`x-icon.png`, the old black mark, is kept
 only so welcome emails already sent — which reference its URL — don't lose
 their icon. The current email doesn't use it.)
 
-### Email button colours: white text on a dark fill, always
-**Every button in the welcome email is white text on a dark fill.** Never dark
-text on a bright fill. Gmail's dark mode (notably on Android) rewrites dark text
-colours to light on its own, without regard for the button's background, and
-nothing in the email can stop it: not inline styles, not `!important`, not the
-`color-scheme` meta tags, not `prefers-color-scheme`. A bright fill is left
+### Email button colours: white text on a dark fill, or the label is an image
+**A text label in the welcome email is always white on a dark fill. Never dark
+text on a bright fill.** Gmail's dark mode (notably on Android) rewrites dark
+text colours to light on its own, without regard for the button's background,
+and nothing in the email can stop it: not inline styles, not `!important`, not
+the `color-scheme` meta tags, not `prefers-color-scheme`. A bright fill is left
 alone, so its dark label turns into an unreadable pale tint. Brand-yellow fill
-with near-black lettering failed on a real Android device, and so did yellow with
-brand-green `#06552A` lettering. **Do not bring dark-on-bright lettering back.**
+with near-black lettering failed on a real Android device, and so did yellow
+with brand-green `#06552A` lettering as *text*.
 
-- **View My Referral Link**: fill `#06552A`, 2px `#DAD905` ring, white text.
-- **Check My Earnings**: fill `#0B4124`, white text. The two are told apart by
-  fill shade and the yellow ring.
+Gmail never alters **images**, so the one yellow button keeps its green lettering
+by making the label part of a picture:
+
+- **View My Referral Link**: brand-yellow `#DAD905` pill with `#06552A` lettering,
+  drawn into `assets/email/btn-referral-link.png` (240x42, shown at 2x). The real
+  label is its `alt` text and the link is the surrounding `<a>`. It looks the same
+  in light and dark mode. If a client blocks images, the alt text shows in green
+  on the yellow cell, which is the one case Gmail could still lighten.
+- **Check My Earnings**: fill `#0B4124`, white text.
 - **Follow us on X** pill: fill `#14231A`, white text and white X mark.
 
-The `button()` helper takes no text-colour option, so dark lettering can't be
-passed to it. Other text is dark-on-pale (white card, cream page, the mint
-referral-code box); Gmail inverts those backgrounds and their text together, so
-they stay readable. Any coloured fill must carry white text, and the tests scan
-for that.
+Don't put dark *text* on the yellow again. The tests fail if any text button is
+not white-on-dark, or if any text sits on a coloured fill. To change the yellow
+button's wording or colours, edit `tools/generate-email-assets.mjs`, re-run it
+(its header has the command) and commit the new PNG. Other text is dark-on-pale
+(white card, cream page, the mint referral-code box); Gmail inverts those
+backgrounds and their text together, so they stay readable.
 
 Colours are stated in several places (`bgcolor` plus `background-color` on the
 cell, `color ... !important` on both the link and a nested `<span>`) so a client

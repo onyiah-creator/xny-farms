@@ -61,6 +61,22 @@ for (const [file, fill] of [["x-icon-white.png", "#ffffff"], ["x-icon.png", "#00
   await page.close();
 }
 
+// ---- "View My Referral Link" button: the label is baked into an image ----
+// Brand-yellow pill, brand-green lettering. Gmail's dark mode rewrites dark TEXT
+// to a light tint but never touches images, so the only way to keep green
+// lettering on yellow in dark mode is for the label to be part of the image.
+// 240x42 displayed, drawn at 2x. Opaque inside the pill, transparent corners.
+{
+  const page = await browser.newPage({ viewport: { width: 240, height: 42 }, deviceScaleFactor: 2 });
+  await page.setContent(`<!doctype html><html><body style="margin:0;background:transparent">
+    <div style="width:240px;height:42px;border-radius:21px;background:#dad905;display:flex;align-items:center;justify-content:center;
+      font:700 16px/1 Arial,'Liberation Sans',Helvetica,sans-serif;color:#06552a">View My Referral Link</div></body></html>`);
+  const png = await page.screenshot({ type: "png", omitBackground: true });
+  writeFileSync(`${OUT}/btn-referral-link.png`, png);
+  console.log(`  btn-referral-link.png  ${png.length} bytes`);
+  await page.close();
+}
+
 // ---- Logo: 440x193 px (displayed at 220x97), flattened onto white ----
 {
   const logoUri = "data:image/png;base64," + readFileSync(ROOT + "assets/xny-logo.png").toString("base64");

@@ -82,35 +82,44 @@ function esc(value) {
     .replace(/'/g, "&#39;");
 }
 
-/* Every button is WHITE text on a DARK fill, never dark text on a bright one.
- * Gmail's dark mode (notably on Android) rewrites dark text colours on its own,
- * without regard for the button's background; inline styles, !important,
- * color-scheme meta tags and prefers-color-scheme don't stop it. A bright fill
- * is left alone, so its dark label becomes unreadable (yellow + green lettering
- * was tried and failed on a real device). White on a dark fill gives it nothing
- * to flip. Colours are also stated redundantly for clients that ignore one
- * mechanism: bgcolor + background-color on the cell, background on the link,
- * and an !important colour on both the link and a nested <span>.
+/* Button label rule: a label is EITHER white text on a dark fill, OR part of an image.
+ * Never dark text on a bright fill. Gmail's dark mode (notably on Android)
+ * rewrites dark text colours on its own, without regard for the button's
+ * background; inline styles, !important, color-scheme meta tags and
+ * prefers-color-scheme don't stop it. Dark text on yellow was tried (near-black
+ * green, then brand green) and failed on a real device. White on a dark fill
+ * gives it nothing to flip, and Gmail never alters images, so the yellow
+ * "View My Referral Link" button carries its green lettering inside a PNG
+ * (tools/generate-email-assets.mjs) with the real label as alt text.
+ * Colours are also stated redundantly for clients that ignore one mechanism:
+ * bgcolor + background-color on the cell, background on the link, and an
+ * !important colour on both the link and a nested <span>.
  */
 const BUTTON_TEXT = "#ffffff";
 const BUTTON_FONT = "font-family:Arial,Helvetica,sans-serif;font-weight:700;line-height:1;";
 
 /** `border` is a 2px (or 1px, for the small pill) ring. Buttons that want no
  *  visible ring pass their own fill colour, so every button ends up exactly the
- *  same size. `icon` is optional, already-escaped HTML placed before the label. */
-function button({ href, label, background, border, size = "large", icon = "", align = "center" }) {
+ *  same size. `icon` is optional, already-escaped HTML placed before the label.
+ *  `image` ({ src, width, height }) replaces the text label with a picture of
+ *  it; `label` then becomes its alt text. */
+function button({ href, label, background, border, size = "large", icon = "", align = "center", image = null }) {
   const dims = size === "small"
     ? { pad: "8px 16px", font: "13px", ring: "1px" }
     : { pad: "13px 32px", font: "16px", ring: "2px" };
   const textStyle = `color:${BUTTON_TEXT} !important;`;
   // centred for the stacked call-to-action buttons, left for the signature pill
   const margin = align === "left" ? "margin:0;" : "margin:0 auto 14px;";
+  const link = image
+    ? `<a href="${href}" target="_blank" rel="noopener" class="btn-link"
+             style="display:block;font-size:0;line-height:0;text-decoration:none;border-radius:999px;"><img class="btn-img" src="${image.src}" width="${image.width}" height="${image.height}" alt="${label}" style="display:block;border:0;width:${image.width}px;height:${image.height}px;border-radius:999px;font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:16px;line-height:${image.height}px;color:#06552a;text-align:center;"></a>`
+    : `<a href="${href}" target="_blank" rel="noopener" class="btn-link"
+             style="display:inline-block;padding:${dims.pad};${BUTTON_FONT}font-size:${dims.font};${textStyle}text-decoration:none;border-radius:999px;background-color:${background};"><span class="btn-text" style="${textStyle}">${icon}${label}</span></a>`;
   return `
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${align}" style="${margin}">
       <tr>
         <td align="center" bgcolor="${background}" class="btn-cell" style="border:${dims.ring} solid ${border};border-radius:999px;background-color:${background};">
-          <a href="${href}" target="_blank" rel="noopener" class="btn-link"
-             style="display:inline-block;padding:${dims.pad};${BUTTON_FONT}font-size:${dims.font};${textStyle}text-decoration:none;border-radius:999px;background-color:${background};"><span class="btn-text" style="${textStyle}">${icon}${label}</span></a>
+          ${link}
         </td>
       </tr>
     </table>`;
@@ -128,6 +137,7 @@ export function buildWelcomeEmail({ name, code, siteUrl }) {
   const statsLink = `${site}/my-stats.html?code=${encodeURIComponent(code)}`;
   const logo = `${site}/assets/email/logo-email.jpg`;
   const xIcon = `${site}/assets/email/x-icon-white.png`;
+  const referralBtnImg = `${site}/assets/email/btn-referral-link.png`;
 
   const html = `<!doctype html>
 <html lang="en">
@@ -188,7 +198,7 @@ export function buildWelcomeEmail({ name, code, siteUrl }) {
 
           <tr>
             <td style="padding:0 32px 4px;">
-              ${button({ href: referralLink, label: "View My Referral Link", background: "#06552a", border: "#dad905" })}
+              ${button({ href: referralLink, label: "View My Referral Link", background: "#dad905", border: "#dad905", image: { src: referralBtnImg, width: 240, height: 42 } })}
               ${button({ href: statsLink, label: "Check My Earnings", background: "#0b4124", border: "#0b4124" })}
             </td>
           </tr>

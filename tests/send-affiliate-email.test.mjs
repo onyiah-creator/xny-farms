@@ -7,6 +7,7 @@
  * checks exactly what WOULD be sent. It cannot tell you how Gmail will render
  * it; for that, send a real email to a test affiliate.
  */
+import { readFileSync } from 'node:fs';
 import { onRequestPost as sendEmail, buildWelcomeEmail } from '../functions/api/send-affiliate-email.js';
 import { onRequestPost as getAffiliates } from '../functions/api/get-affiliates.js';
 import { onRequestPost as registerAff } from '../functions/api/register-affiliate.js';
@@ -50,7 +51,7 @@ check('API key is NOT in the email body', !sent.html.includes('SECRET_KEY') && !
 
 console.log('\n=== the email itself ===');
 const html = sent.html;
-const anchors = [...html.matchAll(/<a\s[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map(m=>({href:m[1],label:m[2].replace(/<[^>]+>/g,'').trim()}));
+const anchors = [...html.matchAll(/<a\s[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map(m=>({href:m[1],label:(m[2].replace(/<[^>]+>/g,'').trim()||(/alt="([^"]*)"/.exec(m[2])||[])[1]||'')}));
 console.log('   links in the HTML:', JSON.stringify(anchors));
 const ref = anchors.find(a=>/Referral Link/.test(a.label));
 const stats = anchors.find(a=>/Earnings/.test(a.label));
@@ -71,11 +72,13 @@ check('no <script> / no inline SVG', !/<script|<svg/i.test(html));
 check('plain text carries the raw URLs', sent.text.includes('https://xnyfarms.com/?ref=ADEBAYO01') && sent.text.includes('https://x.com/xnyfarms'));
 
 
-console.log('\n=== button colour contract: white text on a DARK fill, always ===');
+console.log('\n=== button colour contract: white text on a DARK fill, or the label is an IMAGE ===');
 // Gmail's dark mode (notably Android) rewrites dark text colours on its own, whatever
-// the button's fill, so a button may NEVER pair dark text with a light fill. Yellow
-// lettering-on-yellow-fill and green-on-yellow were both tried and both failed on a
-// real device; these tests exist so neither comes back.
+// the button's fill, so a TEXT button may NEVER pair dark text with a light fill.
+// Near-black and brand-green lettering on the yellow fill both failed on a real device.
+// Gmail never alters images, so the one yellow button keeps its green lettering by
+// carrying the label inside a PNG instead of as text. These tests exist so a yellow
+// button with TEXT lettering can't come back.
 // -- colour maths --
 const hexRgb = h => { const m = /^#([0-9a-f]{6})$/i.exec(h); if (!m) throw new Error('not a #rrggbb colour: ' + h); const n = parseInt(m[1], 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
 const rgbHex = ([r, g, b]) => '#' + [r, g, b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
@@ -110,6 +113,10 @@ const cells = [...html.matchAll(/<td\b([^>]*class="btn-cell"[^>]*)>([\s\S]*?)<\/
   const attrs = m[1], inner = m[2];
   const a = /<a\b[^>]*class="btn-link"[^>]*style="([^"]*)"/.exec(inner);
   const span = /<span class="btn-text" style="([^"]*)">([\s\S]*?)<\/span>/.exec(inner);
+  const img = /<img class="btn-img" src="([^"]+)" width="(\d+)" height="(\d+)" alt="([^"]*)"/.exec(inner);
+  if (img) return { bgcolorAttr: (/bgcolor="([^"]+)"/.exec(attrs) || [])[1], tdStyle: (/style="([^"]*)"/.exec(attrs) || [])[1],
+           aStyle: a && a[1], label: img[4], image: { src: img[1], width: +img[2], height: +img[3] },
+           leftoverText: inner.replace(/<[^>]*>/g, '').trim() };
   return { bgcolorAttr: (/bgcolor="([^"]+)"/.exec(attrs) || [])[1], tdStyle: (/style="([^"]*)"/.exec(attrs) || [])[1],
            aStyle: a && a[1], spanStyle: span && span[1], label: span && span[2].replace(/<[^>]+>/g, '').trim(),
            icon: span && /<img[^>]*src="([^"]+)"/.exec(span[2]) };
@@ -117,12 +124,19 @@ const cells = [...html.matchAll(/<td\b([^>]*class="btn-cell"[^>]*)>([\s\S]*?)<\/
 check('finds all 3 buttons (referral, earnings, X)', cells.length === 3, cells.length);
 const [referralBtn, earningsBtn, xBtn] = cells;
 
-// -- the rule, for EVERY button --
+// -- the rule, for EVERY button: white-on-dark TEXT, or an image label --
 for (const b of cells) {
-  const tag = `"${b.label}"`, fill = b.bgcolorAttr, text = (style(b.aStyle, 'color') || '').replace(' !important', '');
+  const tag = `"${b.label}"`, fill = b.bgcolorAttr;
   check(`${tag}: bgcolor attribute on the <td>`, /^#[0-9a-f]{6}$/i.test(fill), fill);
-  check(`${tag}: same fill as inline background-color on <td> AND <a>`,
-    style(b.tdStyle, 'background-color') === fill && style(b.aStyle, 'background-color') === fill);
+  check(`${tag}: same fill as inline background-color on the <td>`, style(b.tdStyle, 'background-color') === fill);
+  if (b.image) {
+    check(`${tag}: label is an IMAGE with the label as alt text, and no text for Gmail to recolour`,
+      b.image.src.endsWith('/assets/email/btn-referral-link.png') && b.leftoverText === '' && !/color:/i.test(b.aStyle), JSON.stringify(b));
+    check(`${tag}: image has explicit width/height`, b.image.width === 240 && b.image.height === 42);
+    continue;
+  }
+  const text = (style(b.aStyle, 'color') || '').replace(' !important', '');
+  check(`${tag}: same fill as inline background-color on the <a>`, style(b.aStyle, 'background-color') === fill);
   check(`${tag}: text is #ffffff, !important, on the <a>`, style(b.aStyle, 'color') === '#ffffff !important', style(b.aStyle, 'color'));
   check(`${tag}: nested <span> is #ffffff !important too`, style(b.spanStyle, 'color') === '#ffffff !important', style(b.spanStyle, 'color'));
   check(`${tag}: fill is DARK (luminance ${luminance(fill).toFixed(3)} < 0.2)`, luminance(fill) < 0.2, luminance(fill));
@@ -132,19 +146,25 @@ for (const b of cells) {
   const after = contrast(gmailText(text), gmailFill(fill));
   check(`${tag}: still ${after.toFixed(1)}:1 after the Gmail dark-mode model, fill unchanged`, after >= 7 && gmailFill(fill) === fill && gmailText(text) === text, after);
 }
+check('only ONE button carries an image label, and every other button is white-on-dark text', cells.filter(b => b.image).length === 1 && cells.filter(b => !b.image).length === 2);
 
 // -- per-button specifics --
 const fillOf = b => b.bgcolorAttr.toLowerCase();
-check('referral button fill is dark brand green #06552a', fillOf(referralBtn) === '#06552a', fillOf(referralBtn));
-check('referral button has a 2px brand-yellow #dad905 ring', /border:2px solid #dad905/i.test(referralBtn.tdStyle), referralBtn.tdStyle);
+check('referral button keeps the brand-yellow #dad905 fill, with a #dad905 ring (same size as the other big button)', fillOf(referralBtn) === '#dad905' && /border:2px solid #dad905/i.test(referralBtn.tdStyle), referralBtn.tdStyle);
+check('referral button label image exists on disk and is a 480x84 (2x) PNG', (() => {
+  const png = readFileSync(new URL('../assets/email/btn-referral-link.png', import.meta.url));
+  return png.subarray(1, 4).toString() === 'PNG' && png.readUInt32BE(16) === 480 && png.readUInt32BE(20) === 84;
+})());
 check('earnings button is #0b4124 with a matching ring', fillOf(earningsBtn) === '#0b4124' && /border:2px solid #0b4124/i.test(earningsBtn.tdStyle));
-check('the two big buttons are distinguishable (fill shade and yellow ring)', fillOf(referralBtn) !== fillOf(earningsBtn) && /#dad905/i.test(referralBtn.tdStyle) && !/#dad905/i.test(earningsBtn.tdStyle));
+check('the two big buttons are distinguishable (yellow vs dark green)', fillOf(referralBtn) !== fillOf(earningsBtn));
 check('X pill uses the WHITE icon on its dark fill', xBtn.icon && /\/assets\/email\/x-icon-white\.png$/.test(xBtn.icon[1]), xBtn.icon && xBtn.icon[1]);
 check('email no longer references the black x-icon.png', !/x-icon\.png/.test(html));
 
-// -- yellow is a RING only, never a fill and never a text colour --
+// -- yellow is allowed as the fill of the IMAGE button only; never as a text colour or any other fill --
 const fills = [...new Set([...html.matchAll(/bgcolor="(#[0-9a-f]{6})"/gi), ...html.matchAll(/background(?:-color)?:\s*(#[0-9a-f]{6})/gi)].map(m => m[1].toLowerCase()))];
-check(`brand yellow is never a fill (fills in use: ${fills.join(' ')})`, !fills.includes('#dad905'), fills.join(' '));
+const imageFills = cells.filter(b => b.image).map(fillOf);
+check(`yellow is the fill of exactly the image button (fills in use: ${fills.join(' ')})`,
+  JSON.stringify(imageFills) === '["#dad905"]' && cells.filter(b => !b.image).every(b => fillOf(b) !== '#dad905'), fills.join(' '));
 check('brand yellow is never a text colour', ![...html.matchAll(/(?:^|[;"\s])color:\s*(#[0-9a-f]{6})/gi)].some(m => m[1].toLowerCase() === '#dad905'));
 
 // -- audit: every element on a SATURATED / coloured fill must be white on a dark fill --
@@ -153,9 +173,9 @@ check('brand yellow is never a text colour', ![...html.matchAll(/(?:^|[;"\s])col
 // referral code box are. Anything with real colour in its fill is not inverted, so the
 // text on it must be white on a dark fill. Scanned over the real rendered HTML.
 const PALE_OK = new Set(['#ffffff', '#faf6ee', '#e7f3d9']);   // page, card, code box: all pale, low-chroma
-const coloured = fills.filter(f => hsvSat(f) >= 0.25 || luminance(f) < 0.2);
-check(`every fill is either pale-and-inverted-as-a-pair or dark (${fills.join(' ')})`,
-  fills.every(f => PALE_OK.has(f) || luminance(f) < 0.2), fills.filter(f => !PALE_OK.has(f) && luminance(f) >= 0.2).join(' '));
+const coloured = fills.filter(f => hsvSat(f) >= 0.25 || luminance(f) < 0.2);   // includes the yellow: nothing may put TEXT on it
+check(`every fill is pale-and-inverted-as-a-pair, dark, or behind an image label (${fills.join(' ')})`,
+  fills.every(f => PALE_OK.has(f) || luminance(f) < 0.2 || imageFills.includes(f)), fills.filter(f => !PALE_OK.has(f) && luminance(f) >= 0.2 && !imageFills.includes(f)).join(' '));
 check('the pale fills really are pale and low-chroma (Gmail inverts them with their text)',
   [...PALE_OK].every(f => luminance(f) > 0.8 && hsvSat(f) < 0.25), [...PALE_OK].map(f => `${f}:${hsvSat(f).toFixed(2)}`).join(' '));
 let scanned = 0, bad = [];
@@ -178,6 +198,8 @@ check('<meta name="supported-color-schemes" content="light dark">', /<meta name=
 const darkBlock = (/@media \(prefers-color-scheme: dark\)\s*\{([\s\S]*?)\n\s*\}\s*\n/.exec(html) || [])[1] || '';
 check('dark block keeps every button label white', /\.btn-text\s*\{\s*color:\s*#ffffff !important/.test(darkBlock), darkBlock.trim());
 check('no leftover green/yellow lettering classes', !/btn-text--|#dad905\s*!important/i.test(html));
+check('no dark TEXT lettering anywhere inside a button cell (only the image alt fallback may be green)',
+  ![...html.matchAll(/<td\b[^>]*class="btn-cell"[\s\S]*?<\/td>/g)].some(m => /(?<![-\w])color:\s*#(?!ffffff)[0-9a-f]{6}/i.test(m[0].replace(/<img class="btn-img"[^>]*>/, ''))));
 check('the plain-text version is unaffected (no markup)', !/<|style=/.test(sent.text));
 
 console.log('\n=== HTML injection via a hostile applicant name ===');
