@@ -82,33 +82,42 @@ function esc(value) {
     .replace(/'/g, "&#39;");
 }
 
-/* Button text is ALWAYS white on a DARK fill. Never dark text on a bright one.
+/* Button colours.
  *
- * Why: Gmail's dark mode (notably on Android) rewrites text colours but leaves
- * saturated backgrounds alone. A dark label on a bright button (the original
- * yellow "View My Referral Link") has its label lightened to a pale mint while
- * the yellow stays yellow: unreadable. White on a dark fill has nothing for
- * that algorithm to flip, so there's nothing to go wrong.
+ * Two of the three buttons are WHITE text on a DARK fill ("Check My Earnings",
+ * the X pill). That pairing is the one thing known to survive Gmail's dark mode
+ * on Android, which rewrites text colours but leaves saturated backgrounds
+ * alone: there is nothing for it to flip.
  *
- * Every colour is also stated in more than one place, so a client that
- * ignores one mechanism still honours another:
+ * "View My Referral Link" is deliberately the exception: the brand yellow
+ * (#DAD905) with GREEN (#06552A) lettering. That is dark text on a bright fill,
+ * which is exactly the pairing that failed before: Gmail Android lightened the
+ * label to a pale mint on the unchanged yellow. Green lettering instead of the
+ * earlier near-black green may or may not behave differently there; it can't be
+ * tested without a real device, so see the README before relying on it, and the
+ * one-line revert noted there.
+ *
+ * Whatever the pairing, every colour is stated in more than one place, so a
+ * client that ignores one mechanism still honours another:
  *   - fill:  bgcolor attribute on the <td>  +  background-color on the <td>
  *            and on the <a>
  *   - text:  color on the <a>  +  color on a nested <span>, both !important
  * (The <td> carries the fill because some clients, notably Outlook, ignore
  * padding and background on <a>; the coloured cell is the fallback.)
  */
-const BUTTON_TEXT = "#ffffff";
+const LIGHT_TEXT = "#ffffff";   // on the dark buttons
+const BRAND_GREEN = "#06552a";  // lettering on the yellow button
+const BRAND_YELLOW = "#dad905";
 const BUTTON_FONT = "font-family:Arial,Helvetica,sans-serif;font-weight:700;line-height:1;";
 
 /** `border` is a 2px (or 1px, for the small pill) ring. Buttons that want no
  *  visible ring pass their own fill colour, so every button ends up exactly the
  *  same size. `icon` is optional, already-escaped HTML placed before the label. */
-function button({ href, label, background, border, size = "large", icon = "", align = "center" }) {
+function button({ href, label, background, border, text = LIGHT_TEXT, tone = "light", size = "large", icon = "", align = "center" }) {
   const dims = size === "small"
     ? { pad: "8px 16px", font: "13px", ring: "1px" }
     : { pad: "13px 32px", font: "16px", ring: "2px" };
-  const text = `color:${BUTTON_TEXT} !important;`;
+  const textStyle = `color:${text} !important;`;
   // centred for the stacked call-to-action buttons, left for the signature pill
   const margin = align === "left" ? "margin:0;" : "margin:0 auto 14px;";
   return `
@@ -116,7 +125,7 @@ function button({ href, label, background, border, size = "large", icon = "", al
       <tr>
         <td align="center" bgcolor="${background}" class="btn-cell" style="border:${dims.ring} solid ${border};border-radius:999px;background-color:${background};">
           <a href="${href}" target="_blank" rel="noopener" class="btn-link"
-             style="display:inline-block;padding:${dims.pad};${BUTTON_FONT}font-size:${dims.font};${text}text-decoration:none;border-radius:999px;background-color:${background};"><span class="btn-text" style="${text}">${icon}${label}</span></a>
+             style="display:inline-block;padding:${dims.pad};${BUTTON_FONT}font-size:${dims.font};${textStyle}text-decoration:none;border-radius:999px;background-color:${background};"><span class="btn-text btn-text--${tone}" style="${textStyle}">${icon}${label}</span></a>
         </td>
       </tr>
     </table>`;
@@ -145,10 +154,12 @@ export function buildWelcomeEmail({ name, code, siteUrl }) {
   <title>${esc(SUBJECT)}</title>
   <style>
     :root { color-scheme: light dark; supported-color-schemes: light dark; }
-    /* A backstop only: Gmail ignores much of this. The real protection is that
-       every button is white-on-dark inline (see button()). */
+    /* A backstop only: Gmail ignores much of this. It restates each button's
+       OWN lettering colour rather than forcing one colour on all of them,
+       which would paint white on the yellow button. */
     @media (prefers-color-scheme: dark) {
-      a.btn-link, a.btn-link span.btn-text, .btn-text { color: #ffffff !important; }
+      a.btn-link .btn-text--light { color: ${LIGHT_TEXT} !important; }
+      a.btn-link .btn-text--green { color: ${BRAND_GREEN} !important; }
     }
   </style>
 </head>
@@ -195,7 +206,7 @@ export function buildWelcomeEmail({ name, code, siteUrl }) {
 
           <tr>
             <td style="padding:0 32px 4px;">
-              ${button({ href: referralLink, label: "View My Referral Link", background: "#06552a", border: "#dad905" })}
+              ${button({ href: referralLink, label: "View My Referral Link", background: BRAND_YELLOW, border: BRAND_YELLOW, text: BRAND_GREEN, tone: "green" })}
               ${button({ href: statsLink, label: "Check My Earnings", background: "#0b4124", border: "#0b4124" })}
             </td>
           </tr>
