@@ -71,7 +71,11 @@ check('no <script> / no inline SVG', !/<script|<svg/i.test(html));
 check('plain text carries the raw URLs', sent.text.includes('https://xnyfarms.com/?ref=ADEBAYO01') && sent.text.includes('https://x.com/xnyfarms'));
 
 
-console.log('\n=== button colour contract ===');
+console.log('\n=== button colour contract: white text on a DARK fill, always ===');
+// Gmail's dark mode (notably Android) rewrites dark text colours on its own, whatever
+// the button's fill, so a button may NEVER pair dark text with a light fill. Yellow
+// lettering-on-yellow-fill and green-on-yellow were both tried and both failed on a
+// real device; these tests exist so neither comes back.
 // -- colour maths --
 const hexRgb = h => { const m = /^#([0-9a-f]{6})$/i.exec(h); if (!m) throw new Error('not a #rrggbb colour: ' + h); const n = parseInt(m[1], 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
 const rgbHex = ([r, g, b]) => '#' + [r, g, b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
@@ -83,7 +87,6 @@ const hsl = h => { const [r, g, b] = hexRgb(h).map(v => v / 255); const mx = Mat
   const hu = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return [(hu * 60 + 360) % 360, s, l]; };
 const fromHsl = (h, s, l) => { const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l), f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); return rgbHex([f(0) * 255, f(8) * 255, f(4) * 255]); };
 const hsvSat = h => { const [r, g, b] = hexRgb(h); const mx = Math.max(r, g, b); return mx ? (mx - Math.min(r, g, b)) / mx : 0; };
-const hsvVal = h => Math.max(...hexRgb(h)) / 255;
 
 // -- a MODEL of the Gmail-Android dark-mode behaviour reported, not an emulator --
 //   text:  dark text has its lightness inverted (hue kept), light text is left alone
@@ -93,93 +96,89 @@ const hsvVal = h => Math.max(...hexRgb(h)) / 255;
 const gmailText = t => { const [h, s, l] = hsl(t); return l < 0.5 ? fromHsl(h, s, 1 - l) : t; };
 const gmailFill = f => { const [h, s, l] = hsl(f); return (l >= 0.5 && hsvSat(f) < 0.5) ? fromHsl(h, s, 1 - l) : f; };
 
-// A known, reported-and-unverifiable risk is a WARNING, not a pass and not a failure:
-// we can't run Gmail here, and a permanently red test teaches people to ignore it.
-const warnings = [];
-const warn = (name, detail) => { warnings.push(name); console.log('  WARN', name, detail || ''); };
-
-// The model is only worth anything if it catches the ORIGINAL bug: dark green
-// text (#043d1e) on yellow (#dad905) came out as a pale mint on unchanged yellow.
-const oldText = gmailText('#043d1e'), oldFill = gmailFill('#dad905');
-const oldContrast = contrast(oldText, oldFill);
-check(`model reproduces the reported failure: #043d1e text becomes ${oldText} on unchanged yellow (contrast ${oldContrast.toFixed(2)}:1)`,
-  oldFill === '#dad905' && oldText !== '#043d1e' && oldContrast < 3, oldContrast);
+// The model is only worth anything if it catches BOTH designs that failed on a real
+// device: near-black green and brand green lettering on the brand yellow fill.
+for (const failed of ['#043d1e', '#06552a']) {
+  const t = gmailText(failed), f = gmailFill('#dad905'), cr = contrast(t, f);
+  check(`model predicts ${failed} lettering on yellow is unreadable (becomes ${t} on unchanged ${f}, ${cr.toFixed(2)}:1)`,
+    f === '#dad905' && t !== failed && cr < 3, cr);
+}
 
 // -- pull the buttons out of the real rendered HTML --
 const style = (s, prop) => { const m = new RegExp('(?:^|;)\\s*' + prop + ':\\s*([^;]+)', 'i').exec(s || ''); return m ? m[1].trim() : null; };
 const cells = [...html.matchAll(/<td\b([^>]*class="btn-cell"[^>]*)>([\s\S]*?)<\/td>/g)].map(m => {
   const attrs = m[1], inner = m[2];
   const a = /<a\b[^>]*class="btn-link"[^>]*style="([^"]*)"/.exec(inner);
-  const span = /<span class="btn-text btn-text--(\w+)" style="([^"]*)">([\s\S]*?)<\/span>/.exec(inner);
+  const span = /<span class="btn-text" style="([^"]*)">([\s\S]*?)<\/span>/.exec(inner);
   return { bgcolorAttr: (/bgcolor="([^"]+)"/.exec(attrs) || [])[1], tdStyle: (/style="([^"]*)"/.exec(attrs) || [])[1],
-           aStyle: a && a[1], tone: span && span[1], spanStyle: span && span[2], label: span && span[3].replace(/<[^>]+>/g, '').trim(),
-           icon: span && /<img[^>]*src="([^"]+)"/.exec(span[3]) };
+           aStyle: a && a[1], spanStyle: span && span[1], label: span && span[2].replace(/<[^>]+>/g, '').trim(),
+           icon: span && /<img[^>]*src="([^"]+)"/.exec(span[2]) };
 });
 check('finds all 3 buttons (referral, earnings, X)', cells.length === 3, cells.length);
 const [referralBtn, earningsBtn, xBtn] = cells;
 
-// -- rules that hold for EVERY button, whatever its colours --
+// -- the rule, for EVERY button --
 for (const b of cells) {
-  const tag = `"${b.label}"`, fill = b.bgcolorAttr, text = style(b.aStyle, 'color');
+  const tag = `"${b.label}"`, fill = b.bgcolorAttr, text = (style(b.aStyle, 'color') || '').replace(' !important', '');
   check(`${tag}: bgcolor attribute on the <td>`, /^#[0-9a-f]{6}$/i.test(fill), fill);
   check(`${tag}: same fill as inline background-color on <td> AND <a>`,
     style(b.tdStyle, 'background-color') === fill && style(b.aStyle, 'background-color') === fill);
-  check(`${tag}: text colour is !important on the <a>`, /^#[0-9a-f]{6} !important$/i.test(text), text);
-  check(`${tag}: nested <span> has the SAME text colour, also !important`, style(b.spanStyle, 'color') === text, style(b.spanStyle, 'color'));
-  const cr = contrast(text.replace(' !important', ''), fill);
-  check(`${tag}: readable in light mode, ${cr.toFixed(1)}:1 (AA needs 4.5)`, cr >= 4.5, cr);
+  check(`${tag}: text is #ffffff, !important, on the <a>`, style(b.aStyle, 'color') === '#ffffff !important', style(b.aStyle, 'color'));
+  check(`${tag}: nested <span> is #ffffff !important too`, style(b.spanStyle, 'color') === '#ffffff !important', style(b.spanStyle, 'color'));
+  check(`${tag}: fill is DARK (luminance ${luminance(fill).toFixed(3)} < 0.2)`, luminance(fill) < 0.2, luminance(fill));
+  check(`${tag}: never dark text on a light fill (text lighter than fill)`, luminance(text) > luminance(fill));
+  const cr = contrast(text, fill);
+  check(`${tag}: ${cr.toFixed(1)}:1 in light mode (AAA needs 7)`, cr >= 7, cr);
+  const after = contrast(gmailText(text), gmailFill(fill));
+  check(`${tag}: still ${after.toFixed(1)}:1 after the Gmail dark-mode model, fill unchanged`, after >= 7 && gmailFill(fill) === fill && gmailText(text) === text, after);
 }
 
-// -- the two dark buttons are unchanged: white on dark, and safe under the model --
-for (const b of [earningsBtn, xBtn]) {
-  const tag = `"${b.label}"`, fill = b.bgcolorAttr;
-  check(`${tag}: dark fill (luminance ${luminance(fill).toFixed(3)} < 0.1) with #ffffff text`,
-    luminance(fill) < 0.1 && style(b.aStyle, 'color') === '#ffffff !important');
-  const after = contrast(gmailText('#ffffff'), gmailFill(fill));
-  check(`${tag}: still ${after.toFixed(1)}:1 after the Gmail dark-mode model`, after >= 7 && gmailFill(fill) === fill);
-}
-check('earnings button is #0b4124', earningsBtn.bgcolorAttr.toLowerCase() === '#0b4124');
+// -- per-button specifics --
+const fillOf = b => b.bgcolorAttr.toLowerCase();
+check('referral button fill is dark brand green #06552a', fillOf(referralBtn) === '#06552a', fillOf(referralBtn));
+check('referral button has a 2px brand-yellow #dad905 ring', /border:2px solid #dad905/i.test(referralBtn.tdStyle), referralBtn.tdStyle);
+check('earnings button is #0b4124 with a matching ring', fillOf(earningsBtn) === '#0b4124' && /border:2px solid #0b4124/i.test(earningsBtn.tdStyle));
+check('the two big buttons are distinguishable (fill shade and yellow ring)', fillOf(referralBtn) !== fillOf(earningsBtn) && /#dad905/i.test(referralBtn.tdStyle) && !/#dad905/i.test(earningsBtn.tdStyle));
 check('X pill uses the WHITE icon on its dark fill', xBtn.icon && /\/assets\/email\/x-icon-white\.png$/.test(xBtn.icon[1]), xBtn.icon && xBtn.icon[1]);
 check('email no longer references the black x-icon.png', !/x-icon\.png/.test(html));
 
-// -- the yellow button: brand yellow fill, GREEN lettering --
-const refFill = referralBtn.bgcolorAttr.toLowerCase(), refText = style(referralBtn.aStyle, 'color').replace(' !important', '').toLowerCase();
-check('referral button fill is the brand yellow #dad905', refFill === '#dad905', refFill);
-check('referral button lettering is the brand green #06552a', refText === '#06552a', refText);
-const [refHue, refSat] = hsl(refText);
-check(`lettering is genuinely green (hue ${Math.round(refHue)}deg, 90-170)`, refHue >= 90 && refHue <= 170 && refSat > 0.4, refHue);
-check('referral button ring matches its fill, so both big buttons are the same size',
-  /border:2px solid #dad905/i.test(referralBtn.tdStyle) && /border:2px solid #0b4124/i.test(earningsBtn.tdStyle));
-check('the two big buttons are distinguishable', refFill !== earningsBtn.bgcolorAttr.toLowerCase());
+// -- yellow is a RING only, never a fill and never a text colour --
+const fills = [...new Set([...html.matchAll(/bgcolor="(#[0-9a-f]{6})"/gi), ...html.matchAll(/background(?:-color)?:\s*(#[0-9a-f]{6})/gi)].map(m => m[1].toLowerCase()))];
+check(`brand yellow is never a fill (fills in use: ${fills.join(' ')})`, !fills.includes('#dad905'), fills.join(' '));
+check('brand yellow is never a text colour', ![...html.matchAll(/(?:^|[;"\s])color:\s*(#[0-9a-f]{6})/gi)].some(m => m[1].toLowerCase() === '#dad905'));
 
-// -- yellow is allowed in exactly one place: that button. Nothing else bright. --
-const fills = [...new Set([...html.matchAll(/bgcolor="(#[0-9a-f]{6})"/gi), ...html.matchAll(/background-color:\s*(#[0-9a-f]{6})/gi)].map(m => m[1].toLowerCase()))];
-const bright = fills.filter(f => hsvVal(f) >= 0.6 && hsvSat(f) >= 0.4);
-check(`the only bright saturated fill is the referral button's yellow (fills in use: ${fills.join(' ')})`,
-  bright.length === 1 && bright[0] === '#dad905', bright.join(' '));
-check('no OTHER element is placed on the yellow',
-  cells.filter(b => b.bgcolorAttr.toLowerCase() === '#dad905').length === 1);
+// -- audit: every element on a SATURATED / coloured fill must be white on a dark fill --
+// A pale, low-chroma fill (white, cream, mint) is inverted by Gmail TOGETHER with the
+// text on it, so dark-on-pale there is safe; that is what the card, the page, and the
+// referral code box are. Anything with real colour in its fill is not inverted, so the
+// text on it must be white on a dark fill. Scanned over the real rendered HTML.
+const PALE_OK = new Set(['#ffffff', '#faf6ee', '#e7f3d9']);   // page, card, code box: all pale, low-chroma
+const coloured = fills.filter(f => hsvSat(f) >= 0.25 || luminance(f) < 0.2);
+check(`every fill is either pale-and-inverted-as-a-pair or dark (${fills.join(' ')})`,
+  fills.every(f => PALE_OK.has(f) || luminance(f) < 0.2), fills.filter(f => !PALE_OK.has(f) && luminance(f) >= 0.2).join(' '));
+check('the pale fills really are pale and low-chroma (Gmail inverts them with their text)',
+  [...PALE_OK].every(f => luminance(f) > 0.8 && hsvSat(f) < 0.25), [...PALE_OK].map(f => `${f}:${hsvSat(f).toFixed(2)}`).join(' '));
+let scanned = 0, bad = [];
+for (const m of html.matchAll(/<(td|a|div|h1|h2|p|span)\b[^>]*>/g)) {
+  // only cells/blocks that carry their own coloured fill; their text must be white
+  const st = style(/style="([^"]*)"/.exec(m[0])?.[1], 'background-color');
+  if (!st || !/^#[0-9a-f]{6}$/i.test(st) || !coloured.includes(st.toLowerCase())) continue;
+  scanned++;
+  const own = style(/style="([^"]*)"/.exec(m[0])[1], 'color');
+  if (own && !(own.replace(' !important', '').toLowerCase() === '#ffffff' && luminance(st) < 0.2)) bad.push(`${m[1]} ${own} on ${st}`);
+}
+check(`scanned ${scanned} coloured-fill elements: none sets non-white text on a coloured fill`, scanned >= 3 && bad.length === 0, bad.join('; '));
+// the banner is the one non-button coloured fill; its heading must be white
+const banner = /<td\b[^>]*bgcolor="#06552a"[^>]*>\s*<h1\b[^>]*style="([^"]*)"/.exec(html);
+check('banner heading is white on the dark green banner', banner && style(banner[1], 'color') === '#ffffff' && luminance('#06552a') < 0.2, banner && banner[1]);
 
-// -- dark-mode declarations: each button keeps ITS OWN colour (a blanket white would break the yellow one) --
+// -- dark-mode declarations --
 check('<meta name="color-scheme" content="light dark">', /<meta name="color-scheme" content="light dark">/.test(html));
 check('<meta name="supported-color-schemes" content="light dark">', /<meta name="supported-color-schemes" content="light dark">/.test(html));
 const darkBlock = (/@media \(prefers-color-scheme: dark\)\s*\{([\s\S]*?)\n\s*\}\s*\n/.exec(html) || [])[1] || '';
-check('dark block keeps the light buttons white', /\.btn-text--light\s*\{\s*color:\s*#ffffff !important/.test(darkBlock), darkBlock.trim());
-check('dark block keeps the yellow button GREEN', /\.btn-text--green\s*\{\s*color:\s*#06552a !important/.test(darkBlock), darkBlock.trim());
-check('dark block does NOT force one colour on every button (that would put white on yellow)',
-  !/(?:^|[,{\s])\.btn-text\s*[,{]/.test(darkBlock) && !/color:\s*#ffffff[^}]*\.btn-text--green/.test(darkBlock));
+check('dark block keeps every button label white', /\.btn-text\s*\{\s*color:\s*#ffffff !important/.test(darkBlock), darkBlock.trim());
+check('no leftover green/yellow lettering classes', !/btn-text--|#dad905\s*!important/i.test(html));
 check('the plain-text version is unaffected (no markup)', !/<|style=/.test(sent.text));
-
-// -- the thing this change cannot guarantee: Gmail-Android dark mode on the yellow button --
-const refAfter = contrast(gmailText(refText), gmailFill(refFill));
-if (refAfter >= 4.5) {
-  check(`referral button still ${refAfter.toFixed(1)}:1 after the Gmail dark-mode model`, true);
-} else {
-  warn(`UNVERIFIED: under the modelled Gmail dark mode the yellow button's ${refText} lettering becomes ` +
-       `${gmailText(refText)} on unchanged yellow, ${refAfter.toFixed(2)}:1.`,
-       '\n         The model is built from the original report, not Gmail itself, so this is a prediction. Test on a real Android device in dark mode.');
-}
-console.log(warnings.length ? `\n  (${warnings.length} warning${warnings.length > 1 ? 's' : ''}: not failures, but not verified either)` : '');
 
 console.log('\n=== HTML injection via a hostile applicant name ===');
 const evil = buildWelcomeEmail({name:'<a href="https://evil.example">Click</a><script>alert(1)</script>', code:'ABC123'});

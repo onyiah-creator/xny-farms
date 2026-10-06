@@ -502,39 +502,34 @@ emails once the site is deployed. (`x-icon.png`, the old black mark, is kept
 only so welcome emails already sent — which reference its URL — don't lose
 their icon. The current email doesn't use it.)
 
-### Email button colours — and one unverified risk
-Two of the three buttons are **white text on a dark fill** ("Check My Earnings"
-`#0B4124`, and the near-black "Follow us on X" pill with a white mark). That
-pairing is the one known to survive Gmail's dark mode on Android, which
-rewrites **text** colours but leaves saturated **backgrounds** alone.
+### Email button colours: white text on a dark fill, always
+**Every button in the welcome email is white text on a dark fill.** Never dark
+text on a bright fill. Gmail's dark mode (notably on Android) rewrites dark text
+colours to light on its own, without regard for the button's background, and
+nothing in the email can stop it: not inline styles, not `!important`, not the
+`color-scheme` meta tags, not `prefers-color-scheme`. A bright fill is left
+alone, so its dark label turns into an unreadable pale tint. Brand-yellow fill
+with near-black lettering failed on a real Android device, and so did yellow with
+brand-green `#06552A` lettering. **Do not bring dark-on-bright lettering back.**
 
-**"View My Referral Link" is deliberately the exception:** the brand yellow
-`#DAD905` with **green `#06552A`** lettering (5.9:1 in light mode; a brighter
-green drops below readable on that yellow). That is dark text on a bright fill —
-the same *kind* of pairing that failed before, when Gmail Android lightened the
-original near-black-green label to a pale mint on the unchanged yellow. Green
-lettering instead of near-black **may or may not** behave differently there, and
-it cannot be known without a real device. **Check this email in Gmail on
-Android in dark mode.** The test suite prints it as an explicit `WARN` rather
-than a pass, because its model of that behaviour predicts the label will be
-lightened (about 1.2:1).
+- **View My Referral Link**: fill `#06552A`, 2px `#DAD905` ring, white text.
+- **Check My Earnings**: fill `#0B4124`, white text. The two are told apart by
+  fill shade and the yellow ring.
+- **Follow us on X** pill: fill `#14231A`, white text and white X mark.
 
-If it does fail on a device, the previous design — white text on brand green
-`#06552A` with a gold ring, which survives the same model at 9:1 — is commit
-`d6362b6`, and the change is confined to that one `button({...})` call in
-`functions/api/send-affiliate-email.js`.
+The `button()` helper takes no text-colour option, so dark lettering can't be
+passed to it. Other text is dark-on-pale (white card, cream page, the mint
+referral-code box); Gmail inverts those backgrounds and their text together, so
+they stay readable. Any coloured fill must carry white text, and the tests scan
+for that.
 
-Colours are stated in several places — `bgcolor` plus `background-color` on the
-cell, `color … !important` on both the link and a nested `<span>` — so a client
+Colours are stated in several places (`bgcolor` plus `background-color` on the
+cell, `color ... !important` on both the link and a nested `<span>`) so a client
 that ignores one mechanism still honours another. The `color-scheme` /
 `supported-color-schemes` meta tags and the `prefers-color-scheme` block are a
-backstop only; Gmail ignores much of them. That block restates **each button's
-own** lettering colour (white for the dark ones, green for the yellow one) —
-a single blanket colour would paint white on the yellow. One side effect: clients
-that *do* honour `color-scheme: light dark` (Apple Mail, parts of Outlook) treat
-the email as dark-mode-aware and stop auto-darkening it, so there it stays in
-its light design.
-
+backstop only. One side effect: clients that *do* honour `color-scheme: light
+dark` (Apple Mail, parts of Outlook) treat the email as dark-mode-aware and stop
+auto-darkening it, so there it stays in its light design.
 Run the tests with `node tests/send-affiliate-email.test.mjs` (no
 dependencies; KV and Resend are mocked). They check what would be sent, not how
 Gmail renders it — for that, send a real email to a test affiliate.
