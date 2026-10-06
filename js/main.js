@@ -3,6 +3,7 @@
    - Mobile nav toggle
    - Active nav link highlighting
    - Client-side form validation + friendly submit handling
+   - Floating "jump down" button for long pages
    No framework, no build step.
    ========================================================= */
 (function () {
@@ -110,6 +111,73 @@
     });
   }
 
+  /* ---- Floating "jump down" button ----
+     A small round button, bottom-right, that pages down by roughly one
+     screen per tap — so on a long page like the products list you can tap
+     your way through it. It is built here rather than written into every
+     page's HTML, so it exists once and appears consistently everywhere
+     main.js is loaded.
+
+     Visibility rules:
+       - hidden when the page is barely scrollable (total height no more
+         than 1.2x the window), since there is nothing to jump through;
+       - hidden once you're within 200px of the bottom, where it has done
+         its job.
+     The page can change height after load (images arrive, the cart renders
+     its items, the single-product view hides the rest), so visibility is
+     re-evaluated on a ResizeObserver as well as on scroll and resize. */
+  function initJumpDown() {
+    var NEAR_BOTTOM_PX = 200;     // hide when this close to the end
+    var SHORT_PAGE_RATIO = 1.2;   // hide when the page is this close to one screen
+    var STEP_RATIO = 0.85;        // ~a page, minus overlap so you keep your place
+
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "jump-down";
+    btn.setAttribute("aria-label", "Scroll down the page");
+    btn.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" ' +
+      'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+      '<path d="M6 5.5l6 6 6-6" /><path d="M6 12.5l6 6 6-6" /></svg>';
+    document.body.appendChild(btn);
+
+    function update() {
+      var doc = document.documentElement;
+      var viewport = window.innerHeight;
+      var total = doc.scrollHeight;
+      var remaining = total - (window.pageYOffset + viewport);
+      var scrollable = total > viewport * SHORT_PAGE_RATIO;
+      btn.classList.toggle("is-visible", scrollable && remaining > NEAR_BOTTOM_PX);
+    }
+
+    var queued = false;
+    function schedule() {
+      if (queued) return;
+      queued = true;
+      window.requestAnimationFrame(function () {
+        queued = false;
+        update();
+      });
+    }
+
+    btn.addEventListener("click", function () {
+      var reduced = window.matchMedia &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollBy({
+        top: Math.round(window.innerHeight * STEP_RATIO),
+        behavior: reduced ? "auto" : "smooth"
+      });
+    });
+
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    window.addEventListener("load", schedule);
+    if ("ResizeObserver" in window) {
+      new ResizeObserver(schedule).observe(document.body);
+    }
+    update();
+  }
+
   /* ---- Footer year ---- */
   function initYear() {
     var el = document.querySelector("[data-year]");
@@ -120,6 +188,7 @@
     initNav();
     initActiveLink();
     initForms();
+    initJumpDown();
     initYear();
   });
 })();

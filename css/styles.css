@@ -557,6 +557,46 @@ html[data-focus-product] .product-group.is-focus-group .grid--2 {
   margin-left: auto; margin-right: auto;
 }
 
+/* ---------- Floating "jump down" button (built by js/main.js) ----------
+   Brand green with the gold ring the cart badge uses. Hidden states use
+   visibility rather than the hidden attribute so it can fade, and so a
+   hidden button is also out of the tab order. z-index sits under the sticky
+   header (50) but above ordinary content and popovers (20). */
+.jump-down {
+  position: fixed;
+  right: 1.25rem;
+  bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  z-index: 40;
+  width: 48px; height: 48px;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--amber-500);
+  background: var(--green-700);
+  color: var(--white);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  opacity: 0; visibility: hidden; transform: translateY(10px);
+  transition: opacity .25s ease, transform .25s ease, visibility 0s linear .25s, background .2s ease;
+}
+.jump-down svg { width: 24px; height: 24px; display: block; }
+.jump-down.is-visible {
+  opacity: 1; visibility: visible; transform: translateY(0);
+  transition: opacity .25s ease, transform .25s ease, visibility 0s, background .2s ease;
+}
+.jump-down:hover { background: var(--green-800); }
+.jump-down:active { transform: scale(.94); }
+.jump-down:focus-visible { outline: 3px solid var(--amber-400); outline-offset: 3px; }
+@media print { .jump-down { display: none; } }
+
+/* Respect the OS "reduce motion" setting. Without this the global
+   smooth-scroll above would still animate for those visitors, and the jump
+   button's scrollBy({behavior:"auto"}) would inherit it. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .jump-down, .jump-down.is-visible { transition: none; }
+}
+
 /* ---------- Product share button ---------- */
 .share { position: relative; display: inline-flex; }
 .share__btn {
