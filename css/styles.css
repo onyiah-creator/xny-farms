@@ -756,6 +756,26 @@ html[data-focus-product] .product-group.is-focus-group .grid--2 {
 .footer-col h4 { color: #fff; font-size: .95rem; letter-spacing: .05em; text-transform: uppercase; margin-bottom: .9rem; }
 .footer-col ul { list-style: none; padding: 0; margin: 0; }
 .footer-col li { margin-bottom: .5rem; font-size: .95rem; }
+/* Social links under the footer contact details. The footer's other "icons"
+   are emoji, which can't carry a brand mark, so the X logo is an inline SVG
+   (currentColor, so it follows the link colour) in a ring that matches the
+   footer's translucent-white rules. */
+.footer-social { display: flex; gap: .6rem; margin-top: 1rem; }
+.footer-social__link {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.28);
+  color: var(--amber-100);
+  transition: background .2s ease, color .2s ease, border-color .2s ease, transform .12s ease;
+}
+.footer-social__link svg { width: 17px; height: 17px; display: block; }
+.footer-social__link:hover {
+  background: var(--amber-500); border-color: var(--amber-500);
+  color: var(--green-900); text-decoration: none; transform: translateY(-2px);
+}
+.footer-social__link:focus-visible { outline: 2px solid var(--amber-400); outline-offset: 3px; }
+
 .footer-legal {
   border-top: 1px solid rgba(255,255,255,.12);
   margin-top: 2.2rem; padding-top: 1.2rem;
