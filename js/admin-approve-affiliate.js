@@ -1,17 +1,22 @@
 /* =========================================================
    XNY Farms Limited — Affiliate approval (admin-approve-affiliate.html)
-   Sign in, review pending applications, assign a referral code, then
-   open a pre-filled welcome email in the admin's own mail client.
+   Sign in, review pending applications, assign a referral code, and the
+   welcome email is sent automatically through Resend
+   (/api/send-affiliate-email). Already-approved affiliates are listed
+   below, each with a "Resend Welcome Email" button.
 
-   There is deliberately no automatic email sending: this project has no
-   transactional email service or API key. The message is composed for
-   you; you still press send. See README section 7 (referral / affiliate programme).
+   The old client-side mailto: draft remains as a manual fallback button
+   ("Resend manually via email client") — for if Resend fails, or if you'd
+   rather read the message before it goes — but it is no longer automatic.
+   See README section 7 (referral / affiliate programme).
    ========================================================= */
 (function () {
   "use strict";
 
   var REGISTER_ENDPOINT = "/api/register-affiliate";
   var PENDING_ENDPOINT = "/api/get-pending-applications";
+  var AFFILIATES_ENDPOINT = "/api/get-affiliates";
+  var EMAIL_ENDPOINT = "/api/send-affiliate-email";
   var CODE_PATTERN = /^[A-Za-z0-9]{3,32}$/;
   var COMMISSION_LABEL = "8%";
 
@@ -116,6 +121,8 @@
         renderApplications(r.data.applications || []);
         els.gate.hidden = true;
         els.main.hidden = false;
+        // Independent of the pending list: if this fails the page still works.
+        loadAffiliates();
         return true;
       }
       setStatus(els.gateStatus, r.data.error || "Could not load applications.", "error");
@@ -125,6 +132,111 @@
         "Could not reach the server. If you're viewing this page outside Cloudflare Pages, " +
         "the /api/ functions aren't running. (" + err + ")", "error");
       return false;
+    });
+  }
+
+  /* ---------- sending the welcome email (Resend) ---------- */
+
+  /* Asks the server to email the affiliate on file for `code`. The request
+     carries only the password and the code — the server looks up the
+     recipient itself, so this can't be pointed at an arbitrary address. */
+  function sendWelcomeEmail(code) {
+    return post(EMAIL_ENDPOINT, { password: sessionPassword, code: code })
+      .then(function (r) {
+        if (r.status === 200 && r.data.ok) {
+          return { ok: true, email: r.data.sent_to };
+        }
+        return { ok: false, error: r.data.error || "The email service returned an error (HTTP " + r.status + ")." };
+      })
+      .catch(function (err) {
+        return {
+          ok: false,
+          error: "Could not reach the server. If you're viewing this page outside Cloudflare " +
+            "Pages, the /api/ functions aren't running. (" + err + ")"
+        };
+      });
+  }
+
+  /* ---------- approved affiliates ---------- */
+
+  function renderAffiliates(affiliates) {
+    els.afList.innerHTML = "";
+    els.afCount.textContent = String(affiliates.length);
+    els.afNone.hidden = affiliates.length > 0;
+
+    affiliates.forEach(function (aff) {
+      var row = document.createElement("div");
+      row.className = "aff-row";
+
+      var info = document.createElement("div");
+      info.className = "aff-row__info";
+
+      var top = document.createElement("div");
+      top.className = "aff-row__top";
+      var name = document.createElement("strong");
+      name.textContent = aff.name || "(no name)";
+      var code = document.createElement("span");
+      code.className = "aff-row__code";
+      code.textContent = aff.code;
+      top.appendChild(name);
+      top.appendChild(code);
+
+      var meta = document.createElement("div");
+      meta.className = "aff-row__meta";
+      // textContent throughout — names/emails originate from a public form.
+      meta.textContent = (aff.email || "no email on file") +
+        (aff.approved_at ? "  \u00b7  approved " + formatDate(aff.approved_at) : "");
+
+      info.appendChild(top);
+      info.appendChild(meta);
+
+      var actions = document.createElement("div");
+      actions.className = "aff-row__actions";
+
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn--outline";
+      btn.textContent = "Resend Welcome Email";
+      if (!aff.email) btn.disabled = true;
+
+      var status = document.createElement("span");
+      status.className = "aff-row__status";
+      status.setAttribute("role", "status");
+      status.setAttribute("aria-live", "polite");
+
+      btn.addEventListener("click", function () {
+        btn.disabled = true;
+        setStatus(status, "Sending\u2026", null);
+        sendWelcomeEmail(aff.code).then(function (result) {
+          btn.disabled = false;
+          if (result.ok) {
+            setStatus(status, "\u2713 Sent to " + result.email, "good");
+          } else {
+            setStatus(status, "Failed: " + result.error, "error");
+          }
+        });
+      });
+
+      actions.appendChild(btn);
+      actions.appendChild(status);
+      row.appendChild(info);
+      row.appendChild(actions);
+      els.afList.appendChild(row);
+    });
+  }
+
+  function loadAffiliates() {
+    setStatus(els.afStatus, "", null);
+    return post(AFFILIATES_ENDPOINT, { password: sessionPassword }).then(function (r) {
+      if (r.status === 200 && r.data.ok) {
+        renderAffiliates(r.data.affiliates || []);
+        return;
+      }
+      els.afNone.hidden = true;
+      setStatus(els.afStatus, r.data.error || "Could not load approved affiliates.", "error");
+    }).catch(function (err) {
+      els.afNone.hidden = true;
+      setStatus(els.afStatus, "Could not load approved affiliates. (" + err + ")", "error");
     });
   }
 
@@ -212,7 +324,31 @@
     els.doneStats.textContent = statsLink(approval.code);
     els.main.hidden = true;
     els.success.hidden = false;
-    openWelcomeEmail();
+    sendFromSuccessPanel();
+  }
+
+  /* The primary path: email the new affiliate through Resend. The affiliate
+     is already registered by this point, so a failure here must never read
+     as a failed approval — the status says so explicitly and leaves the
+     manual routes open. */
+  function sendFromSuccessPanel() {
+    if (!lastApproval) return;
+    els.emailRetry.hidden = true;
+    els.emailRetry.disabled = true;
+    setStatus(els.emailStatus, "Sending welcome email to " + lastApproval.email + "\u2026", null);
+
+    sendWelcomeEmail(lastApproval.code).then(function (result) {
+      els.emailRetry.disabled = false;
+      if (result.ok) {
+        els.emailRetry.hidden = true;
+        setStatus(els.emailStatus, "\u2713 Welcome email sent to " + result.email, "good");
+      } else {
+        els.emailRetry.hidden = false;
+        setStatus(els.emailStatus,
+          "Affiliate approved \u2014 but the email failed to send: " + result.error +
+          " You can still share the link manually.", "error");
+      }
+    });
   }
 
   /* ---------- assignment ---------- */
@@ -318,6 +454,13 @@
     els.doneStats = document.getElementById("ap-done-stats");
     els.resend = document.getElementById("ap-resend");
     els.another = document.getElementById("ap-another");
+    els.emailStatus = document.getElementById("ap-email-status");
+    els.emailRetry = document.getElementById("ap-email-retry");
+
+    els.afCount = document.getElementById("af-count");
+    els.afList = document.getElementById("af-list");
+    els.afNone = document.getElementById("af-none");
+    els.afStatus = document.getElementById("af-status");
 
     if (!els.gateForm || !els.form) return;
 
@@ -337,6 +480,7 @@
     els.check.addEventListener("click", checkAvailability);
     els.clear.addEventListener("click", clearSelection);
     els.resend.addEventListener("click", openWelcomeEmail);
+    els.emailRetry.addEventListener("click", sendFromSuccessPanel);
 
     els.another.addEventListener("click", function () {
       els.success.hidden = true;

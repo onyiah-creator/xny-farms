@@ -101,6 +101,18 @@
             <p id="ap-status" class="form-status" role="status" aria-live="polite"></p>
           </form>
         </div>
+
+        <!-- Already-approved affiliates: resend a welcome email -->
+        <div class="admin-meta" style="margin-top:2.6rem">
+          <h2 style="font-size:1.3rem;margin:0">Approved affiliates (<span id="af-count">0</span>)</h2>
+        </div>
+        <p class="form-note" style="margin-top:0">
+          Resends the same welcome email to the address on file. Nothing about the affiliate or
+          their code changes.
+        </p>
+        <p id="af-status" class="form-status" role="status" aria-live="polite"></p>
+        <p id="af-none" class="form-note" hidden>No approved affiliates yet.</p>
+        <div id="af-list" class="aff-list"></div>
       </div>
 
       <!-- Success -->
@@ -110,14 +122,16 @@
           <h2>Affiliate approved</h2>
           <p><span id="ap-done-name"></span> has been assigned the code
             <span id="ap-done-code" class="confirmation-ref"></span></p>
-          <p class="form-note" style="margin-bottom:1.2rem">
-            We&rsquo;ve opened your email app with their welcome message pre-filled &mdash;
-            review it and hit send. Nothing is emailed automatically.
-          </p>
+          <p id="ap-email-status" class="form-status" role="status" aria-live="polite" style="margin:0 0 1.2rem"></p>
           <div style="display:flex;gap:.6rem;flex-wrap:wrap;justify-content:center">
-            <button type="button" class="btn btn--primary" id="ap-resend">Re-open Welcome Email</button>
-            <button type="button" class="btn btn--outline" id="ap-another">Approve Another</button>
+            <button type="button" class="btn btn--primary" id="ap-email-retry" hidden>Try Sending Again</button>
+            <button type="button" class="btn btn--outline" id="ap-resend">Resend manually via email client</button>
+            <button type="button" class="btn btn--green" id="ap-another">Approve Another</button>
           </div>
+          <p class="form-note" style="margin:.9rem 0 0">
+            &ldquo;Resend manually&rdquo; opens a plain-text draft in your own email app &mdash; a
+            fallback for if the automatic email fails, or if you&rsquo;d rather review it before it goes.
+          </p>
           <div class="admin-detail">
             <p><strong>Referral link</strong><br /><code id="ap-done-link"></code></p>
             <p><strong>Their stats page</strong><br /><code id="ap-done-stats"></code></p>

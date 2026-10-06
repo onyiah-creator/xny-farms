@@ -625,6 +625,30 @@ html[data-focus-product] .product-group.is-focus-group .grid--2 {
   .app-card__grid dd { margin-bottom: .5rem; }
 }
 
+/* ---------- Approved affiliates (admin-approve-affiliate.html) ---------- */
+.aff-list { display: flex; flex-direction: column; gap: .7rem; }
+.aff-row {
+  display: flex; flex-wrap: wrap; gap: .7rem 1.2rem;
+  align-items: center; justify-content: space-between;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: .9rem 1.1rem;
+}
+.aff-row__info { min-width: 0; flex: 1 1 260px; }
+.aff-row__top { display: flex; flex-wrap: wrap; gap: .3rem .7rem; align-items: baseline; }
+.aff-row__top strong { font-family: var(--font-head); color: var(--green-900); }
+.aff-row__code {
+  font-family: var(--font-head); font-weight: 700; font-size: .85rem;
+  background: var(--green-100); color: var(--green-800);
+  padding: .12rem .55rem; border-radius: 999px;
+}
+.aff-row__meta { font-size: .88rem; color: var(--muted); overflow-wrap: anywhere; margin-top: .15rem; }
+.aff-row__actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .8rem; flex: 0 1 auto; }
+.aff-row__actions .btn { padding: .55rem 1.1rem; font-size: .9rem; }
+.aff-row__status { font-size: .85rem; font-weight: 600; max-width: 34ch; }
+
 /* ---------- Admin hub tiles (admin.html) ---------- */
 .admin-tile {
   display: flex; flex-direction: column;
