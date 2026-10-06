@@ -43,15 +43,21 @@ const X_PATH =
 
 const browser = await chromium.launch({ executablePath: CHROMIUM_PATH });
 
-// ---- X icon: 56x56 px (displayed at 28x28), black on transparent ----
-{
+// ---- X icons: 56x56 px (displayed at 28x28), on transparent ----
+// x-icon-white.png is the one the email uses now: the "Follow us on X" pill
+// has a dark fill so it survives dark mode, and a white mark on dark is
+// legible in any scheme (Gmail's dark mode inverts backgrounds and text but
+// never images, so the old black mark on a light pill became black-on-dark).
+// x-icon.png (black) is still generated and still served ONLY so that welcome
+// emails already sent, which reference its URL, keep their icon.
+for (const [file, fill] of [["x-icon-white.png", "#ffffff"], ["x-icon.png", "#000000"]]) {
   const page = await browser.newPage({ viewport: { width: 56, height: 56 } });
   await page.setContent(`<!doctype html><html><body style="margin:0;background:transparent">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="56" height="56">
-      <path fill="#000000" d="${X_PATH}"/></svg></body></html>`);
+      <path fill="${fill}" d="${X_PATH}"/></svg></body></html>`);
   const png = await page.screenshot({ type: "png", omitBackground: true });
-  writeFileSync(`${OUT}/x-icon.png`, png);
-  console.log(`  x-icon.png  ${png.length} bytes`);
+  writeFileSync(`${OUT}/${file}`, png);
+  console.log(`  ${file}  ${png.length} bytes`);
   await page.close();
 }
 

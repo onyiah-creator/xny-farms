@@ -82,16 +82,41 @@ function esc(value) {
     .replace(/'/g, "&#39;");
 }
 
-/** A "bulletproof" button: the colour is set on the table cell as well as on
- *  the link, because some clients (notably Outlook) ignore padding and
- *  background on <a>. The fallback is still a coloured, clickable cell. */
-function button(href, label, background, color) {
+/* Button text is ALWAYS white on a DARK fill. Never dark text on a bright one.
+ *
+ * Why: Gmail's dark mode (notably on Android) rewrites text colours but leaves
+ * saturated backgrounds alone. A dark label on a bright button (the original
+ * yellow "View My Referral Link") has its label lightened to a pale mint while
+ * the yellow stays yellow: unreadable. White on a dark fill has nothing for
+ * that algorithm to flip, so there's nothing to go wrong.
+ *
+ * Every colour is also stated in more than one place, so a client that
+ * ignores one mechanism still honours another:
+ *   - fill:  bgcolor attribute on the <td>  +  background-color on the <td>
+ *            and on the <a>
+ *   - text:  color on the <a>  +  color on a nested <span>, both !important
+ * (The <td> carries the fill because some clients, notably Outlook, ignore
+ * padding and background on <a>; the coloured cell is the fallback.)
+ */
+const BUTTON_TEXT = "#ffffff";
+const BUTTON_FONT = "font-family:Arial,Helvetica,sans-serif;font-weight:700;line-height:1;";
+
+/** `border` is a 2px (or 1px, for the small pill) ring. Buttons that want no
+ *  visible ring pass their own fill colour, so every button ends up exactly the
+ *  same size. `icon` is optional, already-escaped HTML placed before the label. */
+function button({ href, label, background, border, size = "large", icon = "", align = "center" }) {
+  const dims = size === "small"
+    ? { pad: "8px 16px", font: "13px", ring: "1px" }
+    : { pad: "13px 32px", font: "16px", ring: "2px" };
+  const text = `color:${BUTTON_TEXT} !important;`;
+  // centred for the stacked call-to-action buttons, left for the signature pill
+  const margin = align === "left" ? "margin:0;" : "margin:0 auto 14px;";
   return `
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 14px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${align}" style="${margin}">
       <tr>
-        <td align="center" bgcolor="${background}" style="border-radius:999px;background-color:${background};">
-          <a href="${href}" target="_blank" rel="noopener"
-             style="display:inline-block;padding:15px 34px;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;line-height:1;color:${color};text-decoration:none;border-radius:999px;background-color:${background};">${label}</a>
+        <td align="center" bgcolor="${background}" class="btn-cell" style="border:${dims.ring} solid ${border};border-radius:999px;background-color:${background};">
+          <a href="${href}" target="_blank" rel="noopener" class="btn-link"
+             style="display:inline-block;padding:${dims.pad};${BUTTON_FONT}font-size:${dims.font};${text}text-decoration:none;border-radius:999px;background-color:${background};"><span class="btn-text" style="${text}">${icon}${label}</span></a>
         </td>
       </tr>
     </table>`;
@@ -108,15 +133,24 @@ export function buildWelcomeEmail({ name, code, siteUrl }) {
   const referralLink = `${site}/?ref=${encodeURIComponent(code)}`;
   const statsLink = `${site}/my-stats.html?code=${encodeURIComponent(code)}`;
   const logo = `${site}/assets/email/logo-email.jpg`;
-  const xIcon = `${site}/assets/email/x-icon.png`;
+  const xIcon = `${site}/assets/email/x-icon-white.png`;
 
   const html = `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
   <title>${esc(SUBJECT)}</title>
+  <style>
+    :root { color-scheme: light dark; supported-color-schemes: light dark; }
+    /* A backstop only: Gmail ignores much of this. The real protection is that
+       every button is white-on-dark inline (see button()). */
+    @media (prefers-color-scheme: dark) {
+      a.btn-link, a.btn-link span.btn-text, .btn-text { color: #ffffff !important; }
+    }
+  </style>
 </head>
 <body style="margin:0;padding:0;background-color:#faf6ee;">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#faf6ee;">
@@ -161,8 +195,8 @@ export function buildWelcomeEmail({ name, code, siteUrl }) {
 
           <tr>
             <td style="padding:0 32px 4px;">
-              ${button(referralLink, "View My Referral Link", "#dad905", "#043d1e")}
-              ${button(statsLink, "Check My Earnings", "#06552a", "#ffffff")}
+              ${button({ href: referralLink, label: "View My Referral Link", background: "#06552a", border: "#dad905" })}
+              ${button({ href: statsLink, label: "Check My Earnings", background: "#0b4124", border: "#0b4124" })}
             </td>
           </tr>
 
@@ -183,10 +217,15 @@ export function buildWelcomeEmail({ name, code, siteUrl }) {
                     <p style="margin:0 0 14px;"><strong>XNY Farms Limited</strong><br>
                       xnyfarms@gmail.com &nbsp;|&nbsp; +234 806 013 8299<br>
                       41 Babaponmile Street, Onipetesi, Mangoro, Ikeja, Lagos, Nigeria</p>
-                    <a href="${X_URL}" target="_blank" rel="noopener"
-                       style="display:inline-block;padding:8px 16px;border:1px solid #d9d4c4;border-radius:999px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;line-height:1;color:#14231a;text-decoration:none;background-color:#ffffff;">
-                      <img src="${xIcon}" width="14" height="14" alt="" style="border:0;vertical-align:middle;margin-right:6px;">Follow us on X
-                    </a>
+                    ${button({
+                      href: X_URL,
+                      label: "Follow us on X",
+                      background: "#14231a",
+                      border: "#14231a",
+                      size: "small",
+                      align: "left",
+                      icon: `<img src="${xIcon}" width="14" height="14" alt="" style="border:0;vertical-align:middle;margin-right:6px;">`
+                    })}
                   </td>
                 </tr>
               </table>
