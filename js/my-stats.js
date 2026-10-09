@@ -25,6 +25,34 @@
     show("error");
   }
 
+  function formatDate(value) {
+    var d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(String(value)) ? value + "T00:00:00Z" : value);
+    return isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  }
+
+  // Newest first, as the server sends them. Date, amount and reference only.
+  function renderPayments(payments) {
+    els.paymentsList.innerHTML = "";
+    payments.forEach(function (p) {
+      var li = document.createElement("li");
+      li.className = "pay-history__item";
+      var amount = document.createElement("strong");
+      amount.textContent = money(p.amount_ngn);
+      li.appendChild(amount);
+      var when = document.createElement("span");
+      when.textContent = " on " + formatDate(p.paid_on);
+      li.appendChild(when);
+      if (p.reference) {
+        var ref = document.createElement("span");
+        ref.className = "pay-history__ref";
+        ref.textContent = "ref " + p.reference;
+        li.appendChild(ref);
+      }
+      els.paymentsList.appendChild(li);
+    });
+    els.payments.hidden = payments.length === 0;
+  }
+
   function render(data) {
     els.heading.textContent = "Stats for " + data.code;
     els.orders.textContent = String(data.orders);
@@ -32,6 +60,7 @@
     els.commission.textContent = money(data.commission_ngn);
     els.paid.textContent = money(data.paid_ngn);
     els.balance.textContent = money(data.balance_due_ngn);
+    renderPayments(data.payments || []);
     els.link.textContent = window.location.origin + "/?ref=" + data.code;
     // Nothing logged yet is a normal state for a new affiliate, not an error.
     els.empty.hidden = data.orders > 0;
@@ -76,6 +105,8 @@
     els.commission = document.getElementById("stat-commission");
     els.paid = document.getElementById("stat-paid");
     els.balance = document.getElementById("stat-balance");
+    els.payments = document.getElementById("stats-payments");
+    els.paymentsList = document.getElementById("stats-payments-list");
     els.link = document.getElementById("stats-link");
     els.empty = document.getElementById("stats-empty");
     els.form = document.getElementById("stats-form");

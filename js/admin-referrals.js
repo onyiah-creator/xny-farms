@@ -333,26 +333,78 @@
     if (detail.status === "error") { box.appendChild(el("p", "form-note", detail.error)); return box; }
     var list = detail.data.payouts_detail;
     if (!list.length) { box.appendChild(el("p", "form-note", "No payments recorded yet.")); return box; }
+    var contact = detail.data.contact || {};
     var ul = el("ul", "payout-list");
     list.forEach(function (p) {
+      var what = money(p.amount_ngn) + " payment of " + shortDate(p.paid_on);
       var li = el("li", "payout-list__item");
       var main = el("div", "payout-list__main");
       main.appendChild(el("strong", "", money(p.amount_ngn)));
       main.appendChild(el("span", "", " on " + shortDate(p.paid_on)));
       if (p.reference) main.appendChild(el("span", "payout-list__ref", "ref " + p.reference));
+      var st = emailStatus(p);
+      var badge = el("span", "badge badge--" + st.kind + " payout-list__badge", st.text);
+      if (st.title) badge.title = st.title;
+      main.appendChild(badge);
       li.appendChild(main);
       if (p.note) li.appendChild(el("div", "payout-list__note", p.note));
-      var rm = el("button", "btn btn--outline btn--sm no-print", "Remove");
-      rm.type = "button";
-      rm.setAttribute("data-action", "remove-payout");
-      rm.setAttribute("data-code", row.code);
-      rm.setAttribute("data-key", p.key);
-      rm.setAttribute("aria-label", "Remove the " + money(p.amount_ngn) + " payment of " + shortDate(p.paid_on));
-      li.appendChild(rm);
+
+      var actions = el("div", "payout-list__actions no-print");
+      function action(label, name, extra) {
+        var b = el("button", "btn btn--outline btn--sm", label);
+        b.type = "button";
+        b.setAttribute("data-action", name);
+        b.setAttribute("data-code", row.code);
+        b.setAttribute("data-key", p.key);
+        b.setAttribute("aria-label", label + ": the " + what);
+        if (extra) extra(b);
+        actions.appendChild(b);
+        return b;
+      }
+      action(st.kind === "ok" ? "Resend receipt" : "Send receipt", "resend-receipt", function (b) {
+        b.disabled = !!state.busy["receipt:" + p.key] || contact.has_email === false;
+        if (contact.has_email === false) b.title = "No email address on file";
+      });
+
+      // WhatsApp / SMS: manual, free, no API. The message is built server-side.
+      var number = contact.phone_international;
+      if (number && p.message) {
+        var wa = el("a", "btn btn--outline btn--sm", "WhatsApp");
+        wa.href = "https://wa.me/" + number + "?text=" + encodeURIComponent(p.message);
+        wa.target = "_blank";
+        wa.rel = "noopener noreferrer";
+        wa.setAttribute("aria-label", "WhatsApp: the " + what);
+        actions.appendChild(wa);
+        var sms = el("a", "btn btn--outline btn--sm", "SMS");
+        sms.href = "sms:+" + number + "?&body=" + encodeURIComponent(p.message);
+        sms.setAttribute("aria-label", "SMS: the " + what);
+        actions.appendChild(sms);
+      } else {
+        ["WhatsApp", "SMS"].forEach(function (label) {
+          var off = el("button", "btn btn--outline btn--sm", label);
+          off.type = "button";
+          off.disabled = true;
+          off.title = "No valid phone number on file";
+          actions.appendChild(off);
+        });
+      }
+      action("Remove", "remove-payout", function (b) { b.setAttribute("aria-label", "Remove the " + what); });
+      li.appendChild(actions);
       ul.appendChild(li);
     });
     box.appendChild(ul);
+    box.appendChild(el("p", "form-note",
+      "WhatsApp and SMS open a ready-written message to send yourself. SMS works on a phone; most desktop " +
+      "computers have no app to open it."));
     return box;
+  }
+
+  /** How the receipt email for a payment went. notified_email is { at, ok, error } or null. */
+  function emailStatus(p) {
+    var n = p.notified_email;
+    if (!n) return { kind: "muted", text: "Not emailed" };
+    if (n.ok) return { kind: "ok", text: "Emailed " + shortDate(n.at) };
+    return { kind: "warn", text: "Email failed", title: n.error || "" };
   }
 
   function buildForm(row, detail) {
@@ -368,7 +420,7 @@
 
     var draft = state.drafts[row.code];
     var balance = detail && detail.status === "ok" ? detail.data.summary.balance_due_ngn : row.balance_due_ngn;
-    var defaults = draft || { amount: balance > 0 ? String(balance) : "", date: todayLocal(), reference: "", note: "" };
+    var defaults = draft || { amount: balance > 0 ? String(balance) : "", date: todayLocal(), reference: "", note: "", email: true };
 
     function field(id, label, input) {
       var f = el("div", "field");
@@ -401,6 +453,18 @@
     grid.appendChild(field("reference", "Reference (optional)", ref));
     grid.appendChild(field("note", "Note (optional)", note));
     form.appendChild(grid);
+
+    // Emails the affiliate a receipt (to the address on file; the browser never supplies one).
+    var receipt = el("label", "payout-form__check");
+    var receiptBox = el("input");
+    receiptBox.type = "checkbox"; receiptBox.name = "email_receipt";
+    receiptBox.checked = row.email ? defaults.email !== false : false;
+    receiptBox.disabled = !row.email;
+    receipt.appendChild(receiptBox);
+    receipt.appendChild(el("span", "", row.email
+      ? "Email a payment receipt to the affiliate"
+      : "Email a payment receipt (no email address on file)"));
+    form.appendChild(receipt);
 
     var submit = el("button", "btn btn--green", "Record payment");
     submit.type = "submit";
@@ -532,12 +596,20 @@
       amount_ngn: amount,
       paid_on: date,
       reference: form.elements.reference.value.trim(),
-      note: form.elements.note.value.trim()
+      note: form.elements.note.value.trim(),
+      email_receipt: form.elements.email_receipt.checked
     }).then(function (res) {
       state.busy[code] = false;
       if (res.status === 200 && res.data && res.data.ok) {
         delete state.drafts[code];                 // next form prefills with the NEW balance
-        setNotice("Recorded " + money(res.data.amount_ngn) + " paid to " + label + ".", false);
+        var recorded = "Recorded " + money(res.data.amount_ngn) + " paid to " + label + ".";
+        if (res.data.email_requested && !res.data.notified) {
+          // The payment IS saved; only the email failed.
+          setNotice("Payment recorded, but the email failed: " + (res.data.error || "unknown error") +
+            ". You can resend it from the payment list below.", true);
+        } else {
+          setNotice(recorded + (res.data.notified ? " Receipt emailed." : ""), false);
+        }
         return refreshAfterChange(code);
       }
       setNotice((res.data && res.data.error) || "Could not record the payment.", true);
@@ -563,6 +635,28 @@
     }).catch(function () {
       setNotice("Could not reach the service. Nothing was removed.", true);
     });
+  }
+
+  function resendReceipt(code, key) {
+    var detail = state.details[code];
+    var entry = detail && detail.data && detail.data.payouts_detail.filter(function (p) { return p.key === key; })[0];
+    var what = entry ? money(entry.amount_ngn) + " payment of " + shortDate(entry.paid_on) : "this payment";
+    var row = findRow(code);
+    if (!window.confirm("Email the receipt for the " + what + " to " + ((row && row.name) || code) + " (the address on file)?")) return;
+    state.busy["receipt:" + key] = true;
+    renderTable();
+    post(PAYOUT, { payout_key: key }).then(function (res) {
+      state.busy["receipt:" + key] = false;
+      if (res.status === 200 && res.data && res.data.ok) {
+        setNotice("Receipt emailed.", false);
+      } else {
+        setNotice("The email failed: " + ((res.data && res.data.error) || "could not reach the service") + ". The payment itself is unaffected.", true);
+      }
+      return loadDetail(code);
+    }).catch(function () {
+      state.busy["receipt:" + key] = false;
+      setNotice("Could not reach the service. Nothing was sent.", true);
+    }).then(renderTable);
   }
 
   function copyAccount(code, button) {
@@ -707,6 +801,8 @@
         copyAccount(code, target);
       } else if (action === "remove-payout") {
         removePayout(code, target.getAttribute("data-key"));
+      } else if (action === "resend-receipt") {
+        resendReceipt(code, target.getAttribute("data-key"));
       }
     });
 
@@ -727,7 +823,8 @@
         amount: form.elements.amount.value,
         date: form.elements.date.value,
         reference: form.elements.reference.value,
-        note: form.elements.note.value
+        note: form.elements.note.value,
+        email: form.elements.email_receipt.checked
       };
     });
   });

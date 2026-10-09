@@ -795,6 +795,13 @@ html[data-focus-product] .product-group.is-focus-group .grid--2 {
 .stat-grid.stat-grid--6 { grid-template-columns: repeat(3, 1fr); gap: 1rem; }
 .stat-grid.stat-grid--2 { grid-template-columns: repeat(2, 1fr); }
 @media (max-width: 480px) { .stat-grid.stat-grid--2 { grid-template-columns: 1fr; } }
+.pay-history { margin: 0 0 1.5rem; }
+.pay-history__list { list-style: none; margin: .6rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
+.pay-history__item {
+  background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: .65rem .9rem; display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .6rem; min-width: 0;
+}
+.pay-history__ref { font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
 .stat-card__sub { margin: .35rem 0 0; font-size: .8rem; color: var(--muted); }
 @media (max-width: 800px) { .stat-grid.stat-grid--6 { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 480px) { .stat-grid.stat-grid--6 { grid-template-columns: 1fr; } }
@@ -827,26 +834,47 @@ html[data-focus-product] .product-group.is-focus-group .grid--2 {
 .badge--info { background: var(--amber-100); color: #6b6a02; }
 
 .aff-detail > td { padding: 0; background: var(--cream); }
-.aff-panel { padding: 1.1rem 1.1rem 1.3rem; display: flex; flex-direction: column; gap: 1.2rem; }
-.aff-panel__top { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+/* min-width:0 / minmax(0,1fr) everywhere: grid and flex children default to
+   min-width:auto, so one long unbroken string or a wide input would otherwise
+   stretch the whole panel past the edge of a phone screen. */
+.aff-panel {
+  padding: 1.1rem 1.1rem 1.3rem; display: flex; flex-direction: column; gap: 1.2rem;
+  min-width: 0; max-width: 100%; box-sizing: border-box; overflow-wrap: anywhere;
+}
+.aff-panel > *, .aff-panel__block { min-width: 0; max-width: 100%; }
+.aff-panel input:not([type="checkbox"]), .aff-panel .field { box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; }
+.aff-panel .form-note { overflow-wrap: anywhere; }
+.aff-panel__top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.2rem; }
 .aff-panel__block h3 { font-size: 1rem; margin: 0 0 .5rem; color: var(--green-900); }
 .aff-panel__block .app-card__grid { margin-bottom: 0; }
 .acct { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
 .acct__number { font-family: "Courier New", monospace; font-weight: 700; letter-spacing: .08em; color: var(--green-900); }
-.payout-form__grid { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem 1rem; }
+.payout-form__grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .8rem 1rem; }
+.payout-form__grid > * { min-width: 0; }
+.payout-form__check { display: flex; align-items: flex-start; gap: .55rem; margin-top: .9rem; font-size: .92rem; font-weight: 600; }
+.payout-form__check input { margin-top: .2rem; flex: 0 0 auto; }
 .payout-form__actions { margin-top: .9rem; }
 .payout-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
 .payout-list__item {
-  display: grid; grid-template-columns: 1fr auto; gap: .2rem .8rem; align-items: center;
+  display: flex; flex-direction: column; gap: .35rem; min-width: 0;
   background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: .6rem .8rem;
 }
-.payout-list__ref { margin-left: .7rem; font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
-.payout-list__note { grid-column: 1; font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
-.payout-list__item .btn { grid-column: 2; grid-row: 1 / span 2; }
+.payout-list__main { display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .6rem; min-width: 0; }
+.payout-list__ref { font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
+.payout-list__note { font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
+.payout-list__actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+.payout-list__actions .btn[disabled] { opacity: .45; cursor: not-allowed; transform: none; }
+.payout-list__actions a.btn { text-decoration: none; }
+.badge.payout-list__badge { margin: 0; padding: .15rem .55rem; font-size: .68rem; }
+.badge--ok { background: var(--green-100); color: var(--green-800); }
+.badge--muted { background: #eceae4; color: #4b5149; }
+.admin-table--mini { min-width: 0; }
 .admin-table--mini th, .admin-table--mini td { padding: .45rem .7rem; font-size: .88rem; }
+.admin-table--mini th, .admin-table--mini .num { white-space: nowrap; }
+.admin-table--mini td:nth-child(2) { overflow-wrap: anywhere; }   /* long order references wrap; money and headings never split mid-word */
 
 /* Phone: each row becomes a card (the 7 columns can't fit side by side). */
-@media (max-width: 700px) {
+@media (max-width: 860px) {
   .admin-table--payouts { min-width: 0; border: 0; background: transparent; }
   .admin-table--payouts > thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   /* child combinators only: the small orders table inside a panel keeps its normal table layout */
@@ -871,8 +899,10 @@ html[data-focus-product] .product-group.is-focus-group .grid--2 {
   }
   .admin-table--payouts > tfoot > tr > td:empty { display: none; }
   .admin-table--payouts > tbody > tr.aff-detail > td { display: block; padding: 0; }
-  .aff-panel__top, .payout-form__grid { grid-template-columns: 1fr; }
-  .admin-table--mini { min-width: 420px; }
+  .aff-panel__top, .payout-form__grid { grid-template-columns: minmax(0, 1fr); }
+  /* iOS Safari sizes date/number inputs from their native widget, which can ignore width:100% inside a grid. */
+  .aff-panel input[type="date"], .aff-panel input[type="number"] { -webkit-appearance: none; appearance: none; display: block; min-height: 2.8rem; }
+  .admin-table--mini th, .admin-table--mini td { padding: .4rem .45rem; font-size: .8rem; }
 }
 
 /* Print / Save as PDF: the full table, no controls, no panels, no chrome. */

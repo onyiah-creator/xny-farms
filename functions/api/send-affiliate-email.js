@@ -36,15 +36,9 @@
  * message rather than guessing — the admin page offers a retry.
  */
 
-const FROM = "XNY Farms <affiliates@xnyfarms.com>";
-// Replies go to the inbox that is actually monitored; affiliates@ is a
-// sending identity and may not have a mailbox behind it.
-const REPLY_TO = "xnyfarms@gmail.com";
+import { SITE_URL, X_URL, BUTTON_TEXT, esc, button, signatureRow, sendViaResend } from "../_lib/email.js";
+
 const SUBJECT = "Welcome to the XNY Farms Affiliate Program!";
-const SITE_URL = "https://xnyfarms.com";
-const X_URL = "https://x.com/xnyfarms";
-const RESEND_ENDPOINT = "https://api.resend.com/emails";
-const RESEND_TIMEOUT_MS = 15000;
 
 const CODE_PATTERN = /^[A-Za-z0-9]{3,32}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -67,62 +61,6 @@ function timingSafeEqual(a, b) {
   let diff = 0;
   for (let i = 0; i < aBytes.length; i++) diff |= aBytes[i] ^ bBytes[i];
   return diff === 0;
-}
-
-/** The affiliate's name originates from a public form, so it is untrusted
- *  text going into HTML. Escaping it here is what stops a crafted name like
- *  `<a href="…">` from becoming live markup in an email sent from your
- *  domain. */
-function esc(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-/* Button label rule: a label is EITHER white text on a dark fill, OR part of an image.
- * Never dark text on a bright fill. Gmail's dark mode (notably on Android)
- * rewrites dark text colours on its own, without regard for the button's
- * background; inline styles, !important, color-scheme meta tags and
- * prefers-color-scheme don't stop it. Dark text on yellow was tried (near-black
- * green, then brand green) and failed on a real device. White on a dark fill
- * gives it nothing to flip, and Gmail never alters images, so the yellow
- * "View My Referral Link" button carries its green lettering inside a PNG
- * (tools/generate-email-assets.mjs) with the real label as alt text.
- * Colours are also stated redundantly for clients that ignore one mechanism:
- * bgcolor + background-color on the cell, background on the link, and an
- * !important colour on both the link and a nested <span>.
- */
-const BUTTON_TEXT = "#ffffff";
-const BUTTON_FONT = "font-family:Arial,Helvetica,sans-serif;font-weight:700;line-height:1;";
-
-/** `border` is a 2px (or 1px, for the small pill) ring. Buttons that want no
- *  visible ring pass their own fill colour, so every button ends up exactly the
- *  same size. `icon` is optional, already-escaped HTML placed before the label.
- *  `image` ({ src, width, height }) replaces the text label with a picture of
- *  it; `label` then becomes its alt text. */
-function button({ href, label, background, border, size = "large", icon = "", align = "center", image = null }) {
-  const dims = size === "small"
-    ? { pad: "8px 16px", font: "13px", ring: "1px" }
-    : { pad: "13px 32px", font: "16px", ring: "2px" };
-  const textStyle = `color:${BUTTON_TEXT} !important;`;
-  // centred for the stacked call-to-action buttons, left for the signature pill
-  const margin = align === "left" ? "margin:0;" : "margin:0 auto 14px;";
-  const link = image
-    ? `<a href="${href}" target="_blank" rel="noopener" class="btn-link"
-             style="display:block;font-size:0;line-height:0;text-decoration:none;border-radius:999px;"><img class="btn-img" src="${image.src}" width="${image.width}" height="${image.height}" alt="${label}" style="display:block;border:0;width:${image.width}px;height:${image.height}px;border-radius:999px;font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:16px;line-height:${image.height}px;color:#06552a;text-align:center;"></a>`
-    : `<a href="${href}" target="_blank" rel="noopener" class="btn-link"
-             style="display:inline-block;padding:${dims.pad};${BUTTON_FONT}font-size:${dims.font};${textStyle}text-decoration:none;border-radius:999px;background-color:${background};"><span class="btn-text" style="${textStyle}">${icon}${label}</span></a>`;
-  return `
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${align}" style="${margin}">
-      <tr>
-        <td align="center" bgcolor="${background}" class="btn-cell" style="border:${dims.ring} solid ${border};border-radius:999px;background-color:${background};">
-          ${link}
-        </td>
-      </tr>
-    </table>`;
 }
 
 /**
@@ -211,29 +149,7 @@ export function buildWelcomeEmail({ name, code, siteUrl }) {
             </td>
           </tr>
 
-          <tr>
-            <td style="padding:26px 32px 30px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #e3dbc9;">
-                <tr>
-                  <td style="padding-top:22px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#14231a;">
-                    <p style="margin:0 0 4px;">Thank you for partnering with us.</p>
-                    <p style="margin:0 0 14px;"><strong>XNY Farms Limited</strong><br>
-                      xnyfarms@gmail.com &nbsp;|&nbsp; +234 806 013 8299<br>
-                      41 Babaponmile Street, Onipetesi, Mangoro, Ikeja, Lagos, Nigeria</p>
-                    ${button({
-                      href: X_URL,
-                      label: "Follow us on X",
-                      background: "#14231a",
-                      border: "#14231a",
-                      size: "small",
-                      align: "left",
-                      icon: `<img src="${xIcon}" width="14" height="14" alt="" style="border:0;vertical-align:middle;margin-right:6px;">`
-                    })}
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+          ${signatureRow({ xIcon })}
 
         </table>
       </td>
@@ -344,54 +260,20 @@ export async function onRequestPost(context) {
 
   const message = buildWelcomeEmail({ name: record.name, code });
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), RESEND_TIMEOUT_MS);
-  let resendResponse;
-  try {
-    resendResponse = await fetch(RESEND_ENDPOINT, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.RESEND_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        from: FROM,
-        to: [email],
-        reply_to: REPLY_TO,
-        subject: message.subject,
-        html: message.html,
-        text: message.text
-      }),
-      signal: controller.signal
-    });
-  } catch (err) {
-    clearTimeout(timer);
-    const timedOut = err && err.name === "AbortError";
-    return json({
-      ok: false,
-      error: timedOut
-        ? "The email service took too long to respond. Try again in a moment."
-        : "Could not reach the email service."
-    }, 502);
-  }
-  clearTimeout(timer);
-
-  let payload = {};
-  try {
-    payload = await resendResponse.json();
-  } catch (err) { /* a non-JSON body is handled below */ }
-
-  if (!resendResponse.ok) {
-    // Resend's errors are specific and actionable (unverified domain, bad
-    // key, invalid recipient…), so pass its own message straight back for the
-    // admin page to show. The API key is never part of any response.
-    const detail = (payload && (payload.message || payload.error)) || `HTTP ${resendResponse.status}`;
-    return json({
-      ok: false,
-      error: `Resend rejected the email: ${detail}`,
-      resend_status: resendResponse.status
-    }, 502);
+  const sent = await sendViaResend(env, {
+    to: email,
+    subject: message.subject,
+    html: message.html,
+    text: message.text
+  });
+  if (!sent.ok) {
+    return json(
+      sent.status
+        ? { ok: false, error: sent.error, resend_status: sent.status }
+        : { ok: false, error: sent.error },
+      502
+    );
   }
 
-  return json({ ok: true, sent_to: email, id: payload.id || null });
+  return json({ ok: true, sent_to: email, id: sent.id });
 }

@@ -6,13 +6,14 @@
  * customer details, no order-level data, and no list of which codes exist.
  *
  * Response: { ok, code, approved, orders, total_sales_ngn, commission_ngn,
- *             paid_ngn, balance_due_ngn }
+ *             paid_ngn, balance_due_ngn, payments: [{ paid_on, amount_ngn, reference }] }
  *
  * paid_ngn is the total the admin has recorded as sent to this code
  * (payout:{CODE}:… records, summed from metadata); balance_due_ngn is earned
  * minus paid, never negative. Bank details, payout references and notes are
- * NEVER returned here: this endpoint is public and only ever reads the
- * metadata of the payout records, not their values.
+ * NEVER returned here. The payments list carries date, amount and reference
+ * only (newest first); the payout records' notes, receipt status and contact
+ * details are never put in the response.
  *
  * Scoping: referral records are keyed "referral:{CODE}:{tx_ref}", and this
  * lists with the prefix "referral:{CODE}:" — note the TRAILING COLON. It
@@ -30,6 +31,7 @@
 
 const COMMISSION_RATE = 0.08;
 const CODE_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+const MAX_PAYMENTS_DETAILED = 50;
 
 function json(data, status) {
   return new Response(JSON.stringify(data), {
@@ -133,6 +135,7 @@ async function handle(request, env) {
   // so nothing but the amount is ever read. The trailing colon scopes the
   // prefix to this code, exactly as for referrals above.
   let paidKobo = 0;
+  const payments = [];          // { key, paid_on, amount_ngn, reference }
   try {
     cursor = undefined;
     listComplete = false;
@@ -143,15 +146,38 @@ async function handle(request, env) {
         limit: 1000
       });
       for (const key of page.keys) {
-        let amount = key.metadata && typeof key.metadata.a === "number" ? key.metadata.a : NaN;
-        if (!Number.isFinite(amount)) {
+        const meta = key.metadata || {};
+        let amount = typeof meta.a === "number" ? meta.a : NaN;
+        let paidOn = typeof meta.ts === "string" ? meta.ts : null;
+        let reference = null;      // filled in below for the newest few
+        if (!Number.isFinite(amount) || !paidOn) {
           const raw = await env.REFERRALS_KV.get(key.name);
-          try { amount = Number(JSON.parse(raw).amount_ngn); } catch (err) { continue; }
+          try {
+            const value = JSON.parse(raw);
+            if (!Number.isFinite(amount)) amount = Number(value.amount_ngn);
+            if (!paidOn) paidOn = value.paid_on || null;
+            reference = typeof value.reference === "string" ? value.reference : "";
+          } catch (err) { continue; }
         }
-        if (Number.isFinite(amount) && amount > 0) paidKobo += Math.round(amount * 100);
+        if (Number.isFinite(amount) && amount > 0) {
+          paidKobo += Math.round(amount * 100);
+          payments.push({ key: key.name, paid_on: paidOn, amount_ngn: Math.round(amount * 100) / 100, reference });
+        }
       }
       cursor = page.cursor;
       listComplete = page.list_complete === true || !page.cursor;
+    }
+
+    // Newest first. The reference lives only in the record's value, so it is
+    // read for the newest MAX_PAYMENTS_DETAILED payments only: this endpoint is
+    // public, and must not be a way to make the site do hundreds of reads.
+    payments.sort((a, b) => String(b.paid_on || "").localeCompare(String(a.paid_on || "")) || b.key.localeCompare(a.key));
+    for (const p of payments.slice(0, MAX_PAYMENTS_DETAILED)) {
+      if (p.reference !== null) continue;
+      try {
+        const value = JSON.parse(await env.REFERRALS_KV.get(p.key));
+        p.reference = typeof value.reference === "string" ? value.reference : "";
+      } catch (err) { p.reference = ""; }
     }
   } catch (err) {
     return json({ ok: false, error: "Could not read your referral records." }, 500);
@@ -168,6 +194,8 @@ async function handle(request, env) {
     commission_ngn: Math.round(commission * 100) / 100,
     paid_ngn: paidKobo / 100,
     balance_due_ngn: Math.max(0, earnedKobo - paidKobo) / 100,
+    // Date, amount and reference only: never the note, the receipt status or any bank or contact detail.
+    payments: payments.map((p) => ({ paid_on: p.paid_on, amount_ngn: p.amount_ngn, reference: p.reference || "" })),
     last_order_at: lastOrderAt,
     generated_at: new Date().toISOString()
   });

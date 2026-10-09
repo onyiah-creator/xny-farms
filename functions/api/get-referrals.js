@@ -34,7 +34,14 @@
  * ── Detail response (request with "code") ──
  *   { ok, code, summary: {orders, total_sales_ngn, commission_earned_ngn, paid_ngn, balance_due_ngn, overpaid},
  *     orders_detail:  [{ tx_ref, timestamp, order_total_ngn, commission_ngn }]        newest first,
- *     payouts_detail: [{ key, amount_ngn, paid_on, reference, note }]                 newest first }
+ *     payouts_detail: [{ key, amount_ngn, paid_on, reference, note,
+ *                        notified_email: { at, ok, error } | null,   // receipt email status
+ *                        message }]                                  // WhatsApp/SMS text, built here
+ *                                                                     // newest first,
+ *     contact: { phone_international: "2348…" | null, has_phone, has_email } }
+ *   message, notified_email and contact exist for the admin's buttons only. They carry the
+ *   phone number and the bank name + LAST FOUR digits; this password-gated endpoint is the
+ *   only place they are returned (the listing and every public endpoint omit them).
  *   Per-order and per-payout rows are only built for the one affiliate being
  *   expanded, so the listing stays at one list() per prefix.
  *
@@ -62,14 +69,15 @@
  * 0.30000000000000004.
  */
 
-const COMMISSION_RATE = 0.08;
-const REFERRAL_PREFIX = "referral:";
-const PAYOUT_PREFIX = "payout:";
-const AFFILIATE_PREFIX = "affiliate:";
-const APPLICATION_PREFIX = "application:";
+import {
+  COMMISSION_RATE, REFERRAL_PREFIX, PAYOUT_PREFIX,
+  toKobo, fromKobo, figures, listAll, mapBatched, getJson,
+  loadOrders, loadPayoutTotals, loadAffiliates, loadAffiliate, resolvePayoutDetails,
+  normalisePhone, last4, buildReceiptMessage
+} from "../_lib/payouts.js";
+import { SITE_URL } from "../_lib/email.js";
+
 const DETAIL_CODE_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
-const MAX_FALLBACK_SCAN = 500;   // newest applications read when matching by email
-const BATCH = 20;                // concurrent get() calls
 
 function json(data, status) {
   return new Response(JSON.stringify(data), {
@@ -97,196 +105,6 @@ function timingSafeEqual(a, b) {
   return diff === 0;
 }
 
-
-/* ---- money, in kobo ---- */
-const toKobo = (n) => Math.round(Number(n) * 100);
-const fromKobo = (k) => k / 100;
-
-/** earned/paid in kobo -> the figures a row shows. Balance never goes negative. */
-function figures(earnedKobo, paidKobo) {
-  const diff = earnedKobo - paidKobo;
-  return {
-    commission_ngn: fromKobo(earnedKobo),
-    commission_earned_ngn: fromKobo(earnedKobo),
-    paid_ngn: fromKobo(paidKobo),
-    balance_due_ngn: fromKobo(Math.max(0, diff)),
-    overpaid: diff < 0,
-    overpaid_ngn: fromKobo(Math.max(0, -diff))
-  };
-}
-
-/* ---- KV helpers ---- */
-async function listAll(kv, prefix) {
-  const keys = [];
-  let cursor;
-  let complete = false;
-  while (!complete) {
-    const page = await kv.list({ prefix, cursor, limit: 1000 });
-    for (const key of page.keys) keys.push(key);
-    cursor = page.cursor;
-    complete = page.list_complete === true || !page.cursor;
-  }
-  return keys;
-}
-
-/** Runs fn over items BATCH at a time, preserving order. */
-async function mapBatched(items, fn) {
-  const out = [];
-  for (let i = 0; i < items.length; i += BATCH) {
-    out.push(...(await Promise.all(items.slice(i, i + BATCH).map(fn))));
-  }
-  return out;
-}
-
-async function getJson(kv, key) {
-  const raw = await kv.get(key);
-  if (!raw) return null;
-  try {
-    const value = JSON.parse(raw);
-    return value && typeof value === "object" ? value : null;
-  } catch (err) {
-    return null;
-  }
-}
-
-/** Orders under a prefix as [{ code, tx_ref, timestamp, total, commission }].
- *  Everything comes from metadata (the tx_ref is in the key), so this costs
- *  one list() per 1000 records; a record without metadata is read instead. */
-async function loadOrders(kv, prefix) {
-  const keys = await listAll(kv, prefix);
-  const orders = [];
-  for (const key of keys) {
-    const meta = key.metadata;
-    const parts = key.name.split(":");           // referral:{code}:{tx_ref, which may contain ":"}
-    let code = parts[1];
-    let txRef = parts.slice(2).join(":");
-    let total;
-    let commission;
-    let timestamp;
-
-    if (meta && typeof meta.t === "number") {
-      code = meta.c || code;
-      total = meta.t;
-      commission = typeof meta.m === "number" ? meta.m : meta.t * COMMISSION_RATE;
-      timestamp = meta.ts;
-    } else {
-      const value = await getJson(kv, key.name);
-      if (!value) continue;
-      code = value.ref_code || code;
-      txRef = value.tx_ref || txRef;
-      total = Number(value.order_total_ngn);
-      commission = Number(value.commission_ngn);
-      timestamp = value.timestamp;
-    }
-
-    if (!code) code = "(unknown)";
-    if (!Number.isFinite(total)) continue;
-    if (!Number.isFinite(commission)) commission = total * COMMISSION_RATE;
-    orders.push({
-      code: String(code).toUpperCase(),
-      tx_ref: txRef,
-      timestamp: timestamp || null,
-      total,
-      commission
-    });
-  }
-  return orders;
-}
-
-/** Payouts under a prefix as [{ key, code, amount, paid_on }] from metadata
- *  alone; a record without usable metadata is read instead. */
-async function loadPayoutTotals(kv, prefix) {
-  const keys = await listAll(kv, prefix);
-  const payouts = [];
-  for (const key of keys) {
-    const meta = key.metadata;
-    let code = key.name.split(":")[1];
-    let amount;
-    if (meta && typeof meta.a === "number") {
-      code = meta.c || code;
-      amount = meta.a;
-    } else {
-      const value = await getJson(kv, key.name);
-      if (!value) continue;
-      code = value.code || code;
-      amount = Number(value.amount_ngn);
-    }
-    if (!Number.isFinite(amount) || amount <= 0) continue;
-    payouts.push({ key: key.name, code: String(code).toUpperCase(), amount });
-  }
-  return payouts;
-}
-
-/** Approved affiliates: [{ code, name, email, approved_at, application_key }]. */
-async function loadAffiliates(kv) {
-  const keys = await listAll(kv, AFFILIATE_PREFIX);
-  return mapBatched(keys, async (key) => {
-    const code = key.name.slice(AFFILIATE_PREFIX.length).toUpperCase();
-    const meta = key.metadata;
-    if (meta && typeof meta.n === "string") {
-      return { code, name: meta.n, email: meta.e || "", approved_at: meta.at || null, application_key: meta.k || "" };
-    }
-    const value = (await getJson(kv, key.name)) || {};
-    return {
-      code,
-      name: String(value.name || ""),
-      email: String(value.email || ""),
-      approved_at: value.approved_at || null,
-      application_key: typeof value.application_key === "string" ? value.application_key : ""
-    };
-  });
-}
-
-/** The payout-relevant part of an application, or null. */
-function fromApplication(app) {
-  if (!app) return { phone: "", payout: null };
-  const payout = {
-    bank_name: String(app.bank_name || ""),
-    account_number: String(app.account_number || ""),
-    account_holder: String(app.account_holder || "")
-  };
-  const hasBank = payout.bank_name || payout.account_number || payout.account_holder;
-  return { phone: String(app.phone || ""), payout: hasBank ? payout : null };
-}
-
-/**
- * Finds each affiliate's application: by application_key, else by the most
- * recent application with the same email. Returns Map(code -> { phone, payout }).
- */
-async function resolvePayoutDetails(kv, affiliates) {
-  const result = new Map();
-  const needEmailMatch = [];
-
-  const linked = await mapBatched(affiliates, async (aff) => {
-    if (!aff.application_key || !aff.application_key.startsWith(APPLICATION_PREFIX)) return null;
-    return getJson(kv, aff.application_key);
-  });
-  affiliates.forEach((aff, i) => {
-    if (linked[i]) result.set(aff.code, fromApplication(linked[i]));
-    else needEmailMatch.push(aff);
-  });
-
-  if (needEmailMatch.length) {
-    const wanted = new Set(needEmailMatch.map((a) => a.email.toLowerCase()).filter(Boolean));
-    const found = new Map();                                    // email -> application (newest first wins)
-    if (wanted.size) {
-      const keys = (await listAll(kv, APPLICATION_PREFIX)).map((k) => k.name);
-      keys.sort().reverse();                                    // keys lead with an ISO timestamp
-      const candidates = keys.slice(0, MAX_FALLBACK_SCAN);
-      for (let i = 0; i < candidates.length && found.size < wanted.size; i += BATCH) {
-        const apps = await Promise.all(candidates.slice(i, i + BATCH).map((k) => getJson(kv, k)));
-        for (const app of apps) {                               // still newest-first within the batch
-          const email = app && typeof app.email === "string" ? app.email.trim().toLowerCase() : "";
-          if (email && wanted.has(email) && !found.has(email)) found.set(email, app);
-        }
-      }
-    }
-    for (const aff of needEmailMatch) {
-      result.set(aff.code, fromApplication(found.get(aff.email.toLowerCase()) || null));
-    }
-  }
-  return result;
-}
 
 async function buildListing(kv) {
   const [affiliates, orders, payouts] = await Promise.all([
@@ -370,7 +188,9 @@ async function buildDetail(kv, code) {
       amount_ngn: amount,
       paid_on: (value && value.paid_on) || meta.ts || null,
       reference: (value && value.reference) || "",
-      note: (value && value.note) || ""
+      note: (value && value.note) || "",
+      // { at, ok, error } once a receipt email has been attempted; null = never emailed
+      notified_email: (value && value.notified_email) || null
     };
   })).filter(Boolean);
 
@@ -381,8 +201,35 @@ async function buildDetail(kv, code) {
   const paidK = payouts.reduce((acc, p) => acc + toKobo(p.amount_ngn), 0);
   const f = figures(earnedK, paidK);
 
+  // For the WhatsApp / SMS buttons. Built here so the browser never recomputes
+  // totals. The phone, bank name and last four digits are returned to this
+  // password-gated endpoint only: no public endpoint carries them.
+  const affiliate = await loadAffiliate(kv, code);
+  let phone = "";
+  let payoutInfo = null;
+  if (affiliate) {
+    const resolved = (await resolvePayoutDetails(kv, [affiliate])).get(code);
+    phone = resolved ? resolved.phone : "";
+    payoutInfo = resolved ? resolved.payout : null;
+  }
+  const statsLink = `${SITE_URL}/my-stats.html?code=${encodeURIComponent(code)}`;
+  for (const p of payouts) {
+    p.message = buildReceiptMessage({
+      name: affiliate ? affiliate.name : "",
+      amount: p.amount_ngn,
+      bankName: payoutInfo ? payoutInfo.bank_name : "",
+      last4: payoutInfo ? last4(payoutInfo.account_number) : "",
+      paidOn: p.paid_on,
+      reference: p.reference,
+      paidToDate: f.paid_ngn,
+      balanceDue: f.balance_due_ngn,
+      statsLink
+    });
+  }
+
   return {
     code,
+    contact: { phone_international: normalisePhone(phone), has_phone: Boolean(phone), has_email: Boolean(affiliate && affiliate.email) },
     summary: {
       orders: orders.length,
       total_sales_ngn: fromKobo(orders.reduce((acc, o) => acc + toKobo(o.total), 0)),

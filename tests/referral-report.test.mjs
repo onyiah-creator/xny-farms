@@ -196,10 +196,10 @@ check('partial payment: paid 0.3, balance 199.7', st.j.paid_ngn === 0.3 && st.j.
 st = await stats('ADA010');
 check('a lookalike code does not inherit ADA01\'s payouts', st.j.paid_ngn === 0 && st.j.orders === 1);
 const leak = JSON.stringify((await stats('ADA01')).j);
-for (const secret of ['2000000001', 'Zenith', 'GTBank', 'Ada Linked', 'ada@example.com', 'FLW-123', 'first part', '0800', 'application:', 'payout:', 'BOLA02', '9999999999']) {
+for (const secret of ['2000000001', 'Zenith', 'GTBank', 'Ada Linked', 'ada@example.com', 'first part', '0800', 'application:', 'payout:', 'BOLA02', '9999999999']) {
   check(`get-my-stats never mentions ${JSON.stringify(secret)}`, !leak.includes(secret), leak);
 }
-check('get-my-stats response has only the expected keys', JSON.stringify(Object.keys((await stats('ADA01')).j).sort()) === JSON.stringify(['approved', 'balance_due_ngn', 'code', 'commission_ngn', 'commission_rate', 'generated_at', 'last_order_at', 'ok', 'orders', 'paid_ngn', 'total_sales_ngn']));
+check('get-my-stats response has only the expected keys', JSON.stringify(Object.keys((await stats('ADA01')).j).sort()) === JSON.stringify(['approved', 'balance_due_ngn', 'code', 'commission_ngn', 'commission_rate', 'generated_at', 'last_order_at', 'ok', 'orders', 'paid_ngn', 'payments', 'total_sales_ngn']));
 const keysRead = []; const spyKV = { ...KV, get: async k => { keysRead.push(k); return KV.get(k); } };
 await myStats({ request: new Request('https://x/api/get-my-stats?code=ADA01'), env: { REFERRALS_KV: spyKV } });
 check('get-my-stats never reads an application: record', !keysRead.some(k => k.startsWith('application:')), keysRead.join());

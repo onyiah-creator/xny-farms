@@ -538,8 +538,11 @@ backstop only. One side effect: clients that *do* honour `color-scheme: light
 dark` (Apple Mail, parts of Outlook) treat the email as dark-mode-aware and stop
 auto-darkening it, so there it stays in its light design.
 Run the tests with `node tests/send-affiliate-email.test.mjs` (no
-dependencies; KV and Resend are mocked). The payout report has its own suite:
-`node tests/referral-report.test.mjs`. They check what would be sent, not how
+dependencies; KV and Resend are mocked). The payout report and receipts have their
+own suites: `node tests/referral-report.test.mjs` and
+`node tests/payout-receipts.test.mjs` (receipt contents, last-4-only, recipient
+taken from KV, failure handling, phone normalisation, the receipt's button
+contrast). They check what would be sent, not how
 Gmail renders it — for that, send a real email to a test affiliate.
 
 ### ⚠️ Only approved codes earn commission
@@ -555,7 +558,9 @@ are not recorded and cannot be recovered afterwards.
 ### Affiliates checking their own stats
 Affiliates can see their own numbers at
 **`/my-stats.html?code=THEIRCODE`** — orders, total sales, commission
-earned, **paid out** and **balance due**. No password: the page needs only the code, and the endpoint returns
+earned, **paid out**, **balance due** and a list of the **payments sent to them**
+(date, amount, reference; newest first; the public endpoint reads at most the
+newest 50 references). No password: the page needs only the code, and the endpoint returns
 that one code's totals and nothing else (no other affiliate's figures, no
 customer details, no order-level data, and **never bank details**, payment
 references or notes: it reads only the amounts from the payout records' KV
@@ -593,13 +598,63 @@ this report; it does not reverse any money already sent). **Reconcile the orders
 against the Flutterwave dashboard before paying**: order records are written by
 customers' browsers and are not verified (see the trust warning below).
 
+**Payment receipts by email.** The *Record payment* form has an **"Email a payment
+receipt to the affiliate"** box, ticked by default. After the payment is saved,
+the affiliate is emailed (through Resend, from `affiliates@xnyfarms.com`, replies
+to `xnyfarms@gmail.com`; it needs the same `RESEND_API_KEY` as the welcome email)
+a receipt with: this payment (amount, date, reference, note), where they stand
+(total commission earned, total paid to date *including this payment*, balance
+still due), where it went (**bank name and the last four digits only, never the
+full account number**), a white-on-dark-green **View My Earnings** button, a plain
+text version, and a line saying to reply if anything looks wrong. Everything is
+read from KV on the server: the recipient is the email on the affiliate record, and
+the totals are recomputed from the stored orders and payments. Nothing about the
+recipient, the totals or the bank comes from the browser.
+
+The **payment is always saved first.** If the email fails (Resend down, domain not
+verified, no `RESEND_API_KEY`, bad address on file) the page says *"Payment
+recorded, but the email failed: <reason>. You can resend it."* The outcome is
+stored on the payment as `notified_email: { at, ok, error }` and shown as a badge
+in the payment list: **Emailed <date>**, **Email failed** (hover for the reason) or
+**Not emailed** (older payments, or the box was unticked). **Send / Resend
+receipt** emails it again (the totals in a resent receipt are the current ones).
+Removing a payment sends nothing.
+
+**WhatsApp and SMS buttons (manual, free).** Each payment also has **WhatsApp** and
+**SMS** buttons that open a ready-written message (`https://wa.me/<number>?text=…`
+and an `sms:` link) for *you* to press send on:
+
+> Hello Adebayo, XNY Farms has paid ₦1,500 commission to your GTBank account ending
+> 4821 on 10 May 2026. Ref: FLW-1. Total paid to date: ₦2,000. Balance due: ₦2,800.
+> Check your earnings: https://xnyfarms.com/my-stats.html?code=ADEBAYO01 Thank you
+> for partnering with us.
+
+They are manual on purpose: sending WhatsApp or SMS automatically needs a paid API
+(WhatsApp Business API with approved message templates, or an SMS gateway with a
+registered sender ID, and Nigerian SMS rules to comply with), which is cost and
+set-up this site doesn't need. A `wa.me` link is free and uses your own WhatsApp.
+SMS opens your phone's messaging app, so it works on a phone but not on most
+desktops. The message text is built on the server (so the totals match the
+receipt) and there is deliberately no full stop after the link, because chat apps
+would include it in the URL. The phone number is the one on the affiliate's
+signup application; it is normalised (spaces, dashes, brackets and a leading `+`
+removed; `0801…` becomes `234801…`; anything that isn't an 11-digit `0…` or
+13-digit `234…` number is invalid) and, if invalid or missing, the buttons are
+greyed out with "No valid phone number on file".
+
 **Bank details (NDPR).** Account numbers are shown masked (`******4821`) until
 you press **Reveal**; **Copy account number** copies the full number regardless.
 They are never written to the console or put in a URL. The CSV export contains
 full account numbers (and a warning says so): store it securely and delete it
 once the payments are made. Under the NDPR you should keep bank details only as
 long as you need them, and delete the application records (see below) for
-affiliates you no longer pay. In the CSV, account and phone numbers are written
+affiliates you no longer pay. **Receipts carry payment data too:** the amount,
+the date, the reference and note, the running totals, and the bank name with the
+last four digits are emailed to the affiliate and stay in their mailbox and in
+Resend's sending logs (check Resend's retention settings). Only the last four
+digits are ever sent, and the same goes for the WhatsApp/SMS text, but treat
+payment references and notes as personal data and don't put anything in them you
+wouldn't want in an email. In the CSV, account and phone numbers are written
 as `="0123456789"` so Excel and Google Sheets keep the leading zero; other
 spreadsheet programs may show the `="..."` wrapper.
 
@@ -624,7 +679,8 @@ the password, so use a strong one.
 | `js/referral.js` | Loaded on every page. Captures `?ref=`, stores it, and POSTs completed orders to the logging endpoint. |
 | `functions/api/log-referral.js` | Pages Function. Validates the payload, **checks the code is an approved affiliate**, computes 8% commission, writes to KV as `referral:{CODE}:{tx_ref}`. |
 | `functions/api/get-referrals.js` | Pages Function. Password-checked payout report: per affiliate and in total, earned / paid / balance due plus payout details. With `{ "code": ... }` it returns that one affiliate's orders and payments. |
-| `functions/api/record-payout.js` | Pages Function. Password-checked; records a payment made to an affiliate (`payout:{CODE}:...`), or removes one with `{ delete_key }` (only `payout:` keys are accepted). |
+| `functions/api/record-payout.js` | Pages Function. Password-checked; records a payment made to an affiliate (`payout:{CODE}:...`) and optionally emails the receipt (`email_receipt: true`); `{ payout_key }` resends a receipt; `{ delete_key }` removes a payment. Only `payout:` keys are accepted for both. |
+| `functions/_lib/*.js` | Shared code imported by the functions (no `onRequest*` export, so Pages doesn't route them): `email.js` (Resend sender, buttons, signature), `payouts.js` (KV readers, kobo maths, phone normalisation, message text), `receipt.js` (the receipt email). |
 | `functions/api/register-affiliate.js` | Pages Function. Password-checked code assignment; writes `affiliate:{CODE}` and marks the linked application approved. |
 | `functions/api/send-affiliate-email.js` | Pages Function. Password-checked; emails an approved affiliate their welcome message via Resend. |
 | `functions/api/get-affiliates.js` | Pages Function. Password-checked; lists approved affiliates for the resend list. |
@@ -641,7 +697,9 @@ KV keys used: `affiliate:{CODE}` (one per approved affiliate; value
 `referral:{CODE}:{tx_ref}` (one per recorded sale; metadata `{c, t, m, ts}`),
 `payout:{CODE}:{timestamp}-{id}` (one per payment made to an affiliate; value
 `{code, amount_ngn, paid_on, reference, note, recorded_at}`, metadata
-`{c, a, ts}` so totals come from `list()` alone) and
+`{c, a, ts}` so totals come from `list()` alone; `notified_email:
+{at, ok, error}` is added to the value, never the metadata, once a receipt has
+been tried) and
 `application:{timestamp}-{id}` (one per signup application, holding bank
 details and phone).
 

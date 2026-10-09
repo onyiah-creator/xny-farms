@@ -14,7 +14,16 @@
  *   paid_on     string  ISO date ("2026-10-09") or date-time
  *   reference   string  optional, e.g. a Flutterwave transfer or bank reference
  *   note        string  optional
- *   -> { ok: true, key, code, amount_ngn, paid_on }
+ *   email_receipt  bool  optional (default false): email the affiliate a receipt
+ *   -> { ok: true, recorded: true, notified, email_requested, key, code, amount_ngn, paid_on, error? }
+ *   The payout is saved FIRST and stays saved whatever happens to the email. If the
+ *   email fails the answer is still ok:true, recorded:true, notified:false, with
+ *   error saying why. The recipient, totals and bank last-4 are read from KV; an
+ *   "email" or "phone" in the request is ignored. See _lib/receipt.js.
+ *
+ * Resend a receipt for an existing payout — body (JSON):
+ *   password, payout_key  (only keys starting "payout:" are accepted)
+ *   -> { ok: true, notified: true } or { ok: false, notified: false, error }
  *
  * Remove a mistaken entry — body (JSON):
  *   password    string
@@ -29,6 +38,8 @@
  * Overpayment is deliberately NOT rejected: paying ahead (an advance, a
  * rounded-up transfer) is a normal thing to do. The report flags it instead.
  */
+
+import { sendPayoutReceipt } from "../_lib/receipt.js";
 
 const CODE_PATTERN = /^[A-Za-z0-9]{3,32}$/;
 const MAX_PAYOUT_NGN = 100000000;   // sanity ceiling, rejects absurd payloads
@@ -118,6 +129,24 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: "Incorrect password." }, 401);
   }
 
+  if (body.delete_key !== undefined && body.payout_key !== undefined) {
+    return json({ ok: false, error: "Send either delete_key or payout_key, not both." }, 400);
+  }
+
+  /* ---- Resend a receipt ----
+     Same prefix guard as delete_key, for the same reason: the key comes from
+     the browser. The recipient is whatever is on the affiliate record in KV. */
+  if (body.payout_key !== undefined) {
+    const key = typeof body.payout_key === "string" ? body.payout_key.trim() : "";
+    if (!key.startsWith("payout:") || key.length > 200) {
+      return json({ ok: false, error: "payout_key must be a payout key." }, 400);
+    }
+    const result = await sendPayoutReceipt(env, key);
+    if (result.missing) return json({ ok: false, notified: false, error: result.error }, 404);
+    if (!result.ok) return json({ ok: false, notified: false, error: result.error }, 502);
+    return json({ ok: true, notified: true });
+  }
+
   /* ---- Remove a mistaken entry ----
      The key comes from the browser, so it is held to the "payout:" prefix:
      without that, this would be a way to delete any key in the namespace —
@@ -204,5 +233,19 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: "Could not save the payout record." }, 500);
   }
 
-  return json({ ok: true, key, code, amount_ngn: amountNgn, paid_on: paidOn });
+  // The payout is saved. Everything below is best effort and can only ever
+  // change the answer's notified/error fields, never un-record the payment.
+  const emailRequested = body.email_receipt === true;
+  const answer = { ok: true, recorded: true, notified: false, email_requested: emailRequested, key, code, amount_ngn: amountNgn, paid_on: paidOn };
+  if (emailRequested) {
+    let result;
+    try {
+      result = await sendPayoutReceipt(env, key, { ensure: { key, amount: amountNgn } });
+    } catch (err) {
+      result = { ok: false, error: "Could not send the receipt email." };
+    }
+    answer.notified = result.ok === true;
+    if (!result.ok) answer.error = result.error;
+  }
+  return json(answer);
 }
