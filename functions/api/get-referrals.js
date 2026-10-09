@@ -1,33 +1,75 @@
 /**
  * POST /api/get-referrals — Cloudflare Pages Function
  *
- * Password-gated referral report, consumed by admin-referrals.html.
- * Returns every logged referral aggregated by affiliate code.
+ * Password-gated payout report, consumed by admin-referrals.html: per
+ * affiliate and in total, what was earned, what has been paid, what is still
+ * owed, and where to send the money.
  *
- * Request body (JSON): { "password": "…" }
+ * Request body (JSON): { "password": "…" }                  -> the listing
+ *                      { "password": "…", "code": "ADE01" }  -> one affiliate's detail
  * Checked against the ADMIN_REPORT_PASSWORD environment variable, set in
  * the Pages project under Settings → Environment variables (see README).
  *
- * Response:
+ * ── Listing response ──
  *   {
- *     ok: true,
- *     commission_rate: 0.08,
- *     generated_at: "…ISO…",
- *     rows: [{ code, orders, total_sales_ngn, commission_ngn, last_order_at }],
- *     totals: { orders, total_sales_ngn, commission_ngn }
+ *     ok: true, commission_rate: 0.08, generated_at: "…ISO…",
+ *     rows: [{
+ *       code, name, email, phone, approved_at, unregistered,
+ *       orders, total_sales_ngn,
+ *       commission_ngn, commission_earned_ngn,   // same number; the first is the original field name
+ *       paid_ngn, balance_due_ngn,               // balance is earned − paid, never negative
+ *       overpaid, overpaid_ngn,                  // paid exceeded earned
+ *       last_order_at,
+ *       payout: { bank_name, account_number, account_holder } | null
+ *     }],                                        // one per APPROVED affiliate (zero orders included),
+ *                                                // plus any code with orders/payouts but no affiliate
+ *                                                // record (unregistered: true). Largest balance first.
+ *     totals: { affiliates, unregistered_codes, active_affiliates (approved, with ≥1 order), orders, total_sales_ngn,
+ *               commission_ngn, commission_earned_ngn, paid_ngn, balance_due_ngn, overpaid_ngn }
  *   }
+ *   totals.balance_due_ngn is the sum of the rows' balances, so one affiliate's
+ *   overpayment never cancels out another's debt; overpayments are totalled
+ *   separately in overpaid_ngn.
  *
- * Aggregation reads the figures from each key's KV metadata, so the whole
- * report costs one list() call per 1000 records rather than a get() per
- * record. Records written before metadata existed (or with it missing)
- * fall back to reading the value itself.
+ * ── Detail response (request with "code") ──
+ *   { ok, code, summary: {orders, total_sales_ngn, commission_earned_ngn, paid_ngn, balance_due_ngn, overpaid},
+ *     orders_detail:  [{ tx_ref, timestamp, order_total_ngn, commission_ngn }]        newest first,
+ *     payouts_detail: [{ key, amount_ngn, paid_on, reference, note }]                 newest first }
+ *   Per-order and per-payout rows are only built for the one affiliate being
+ *   expanded, so the listing stays at one list() per prefix.
+ *
+ * ── Where the figures come from ──
+ *   referral:{CODE}:{tx_ref}   orders  — sums read from KV METADATA (no get per record)
+ *   payout:{CODE}:{ts}-{id}    payouts — sums read from KV METADATA
+ *   affiliate:{CODE}           who is approved; metadata {n,e,at,k}
+ *   application:{ts}-{id}      bank details + phone; ONE get() per affiliate
+ * Records written before metadata existed fall back to reading the value.
+ *
+ * ── Payout details: how an affiliate is joined to their application ──
+ *   1. affiliate.application_key (stored by register-affiliate.js since the
+ *      key was introduced), if that application still exists;
+ *   2. otherwise the MOST RECENT application whose email matches the
+ *      affiliate's (case-insensitive) — for affiliates approved before the
+ *      link existed. This needs the application values, so it reads up to
+ *      MAX_FALLBACK_SCAN of the newest ones, once, and only when some
+ *      affiliate needs it;
+ *   3. otherwise payout: null.
+ *   An application whose bank fields are all blank also yields payout: null.
  *
  * Note: "total_sales_ngn" is the sum of the COMMISSIONABLE subtotals
  * (delivery fees excluded), which is the base the 8% is charged on.
+ * Money is added up in kobo (integers) so 0.1 + 0.2 never shows up as
+ * 0.30000000000000004.
  */
 
 const COMMISSION_RATE = 0.08;
-const KEY_PREFIX = "referral:";
+const REFERRAL_PREFIX = "referral:";
+const PAYOUT_PREFIX = "payout:";
+const AFFILIATE_PREFIX = "affiliate:";
+const APPLICATION_PREFIX = "application:";
+const DETAIL_CODE_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+const MAX_FALLBACK_SCAN = 500;   // newest applications read when matching by email
+const BATCH = 20;                // concurrent get() calls
 
 function json(data, status) {
   return new Response(JSON.stringify(data), {
@@ -53,6 +95,310 @@ function timingSafeEqual(a, b) {
   let diff = 0;
   for (let i = 0; i < aBytes.length; i++) diff |= aBytes[i] ^ bBytes[i];
   return diff === 0;
+}
+
+
+/* ---- money, in kobo ---- */
+const toKobo = (n) => Math.round(Number(n) * 100);
+const fromKobo = (k) => k / 100;
+
+/** earned/paid in kobo -> the figures a row shows. Balance never goes negative. */
+function figures(earnedKobo, paidKobo) {
+  const diff = earnedKobo - paidKobo;
+  return {
+    commission_ngn: fromKobo(earnedKobo),
+    commission_earned_ngn: fromKobo(earnedKobo),
+    paid_ngn: fromKobo(paidKobo),
+    balance_due_ngn: fromKobo(Math.max(0, diff)),
+    overpaid: diff < 0,
+    overpaid_ngn: fromKobo(Math.max(0, -diff))
+  };
+}
+
+/* ---- KV helpers ---- */
+async function listAll(kv, prefix) {
+  const keys = [];
+  let cursor;
+  let complete = false;
+  while (!complete) {
+    const page = await kv.list({ prefix, cursor, limit: 1000 });
+    for (const key of page.keys) keys.push(key);
+    cursor = page.cursor;
+    complete = page.list_complete === true || !page.cursor;
+  }
+  return keys;
+}
+
+/** Runs fn over items BATCH at a time, preserving order. */
+async function mapBatched(items, fn) {
+  const out = [];
+  for (let i = 0; i < items.length; i += BATCH) {
+    out.push(...(await Promise.all(items.slice(i, i + BATCH).map(fn))));
+  }
+  return out;
+}
+
+async function getJson(kv, key) {
+  const raw = await kv.get(key);
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw);
+    return value && typeof value === "object" ? value : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+/** Orders under a prefix as [{ code, tx_ref, timestamp, total, commission }].
+ *  Everything comes from metadata (the tx_ref is in the key), so this costs
+ *  one list() per 1000 records; a record without metadata is read instead. */
+async function loadOrders(kv, prefix) {
+  const keys = await listAll(kv, prefix);
+  const orders = [];
+  for (const key of keys) {
+    const meta = key.metadata;
+    const parts = key.name.split(":");           // referral:{code}:{tx_ref, which may contain ":"}
+    let code = parts[1];
+    let txRef = parts.slice(2).join(":");
+    let total;
+    let commission;
+    let timestamp;
+
+    if (meta && typeof meta.t === "number") {
+      code = meta.c || code;
+      total = meta.t;
+      commission = typeof meta.m === "number" ? meta.m : meta.t * COMMISSION_RATE;
+      timestamp = meta.ts;
+    } else {
+      const value = await getJson(kv, key.name);
+      if (!value) continue;
+      code = value.ref_code || code;
+      txRef = value.tx_ref || txRef;
+      total = Number(value.order_total_ngn);
+      commission = Number(value.commission_ngn);
+      timestamp = value.timestamp;
+    }
+
+    if (!code) code = "(unknown)";
+    if (!Number.isFinite(total)) continue;
+    if (!Number.isFinite(commission)) commission = total * COMMISSION_RATE;
+    orders.push({
+      code: String(code).toUpperCase(),
+      tx_ref: txRef,
+      timestamp: timestamp || null,
+      total,
+      commission
+    });
+  }
+  return orders;
+}
+
+/** Payouts under a prefix as [{ key, code, amount, paid_on }] from metadata
+ *  alone; a record without usable metadata is read instead. */
+async function loadPayoutTotals(kv, prefix) {
+  const keys = await listAll(kv, prefix);
+  const payouts = [];
+  for (const key of keys) {
+    const meta = key.metadata;
+    let code = key.name.split(":")[1];
+    let amount;
+    if (meta && typeof meta.a === "number") {
+      code = meta.c || code;
+      amount = meta.a;
+    } else {
+      const value = await getJson(kv, key.name);
+      if (!value) continue;
+      code = value.code || code;
+      amount = Number(value.amount_ngn);
+    }
+    if (!Number.isFinite(amount) || amount <= 0) continue;
+    payouts.push({ key: key.name, code: String(code).toUpperCase(), amount });
+  }
+  return payouts;
+}
+
+/** Approved affiliates: [{ code, name, email, approved_at, application_key }]. */
+async function loadAffiliates(kv) {
+  const keys = await listAll(kv, AFFILIATE_PREFIX);
+  return mapBatched(keys, async (key) => {
+    const code = key.name.slice(AFFILIATE_PREFIX.length).toUpperCase();
+    const meta = key.metadata;
+    if (meta && typeof meta.n === "string") {
+      return { code, name: meta.n, email: meta.e || "", approved_at: meta.at || null, application_key: meta.k || "" };
+    }
+    const value = (await getJson(kv, key.name)) || {};
+    return {
+      code,
+      name: String(value.name || ""),
+      email: String(value.email || ""),
+      approved_at: value.approved_at || null,
+      application_key: typeof value.application_key === "string" ? value.application_key : ""
+    };
+  });
+}
+
+/** The payout-relevant part of an application, or null. */
+function fromApplication(app) {
+  if (!app) return { phone: "", payout: null };
+  const payout = {
+    bank_name: String(app.bank_name || ""),
+    account_number: String(app.account_number || ""),
+    account_holder: String(app.account_holder || "")
+  };
+  const hasBank = payout.bank_name || payout.account_number || payout.account_holder;
+  return { phone: String(app.phone || ""), payout: hasBank ? payout : null };
+}
+
+/**
+ * Finds each affiliate's application: by application_key, else by the most
+ * recent application with the same email. Returns Map(code -> { phone, payout }).
+ */
+async function resolvePayoutDetails(kv, affiliates) {
+  const result = new Map();
+  const needEmailMatch = [];
+
+  const linked = await mapBatched(affiliates, async (aff) => {
+    if (!aff.application_key || !aff.application_key.startsWith(APPLICATION_PREFIX)) return null;
+    return getJson(kv, aff.application_key);
+  });
+  affiliates.forEach((aff, i) => {
+    if (linked[i]) result.set(aff.code, fromApplication(linked[i]));
+    else needEmailMatch.push(aff);
+  });
+
+  if (needEmailMatch.length) {
+    const wanted = new Set(needEmailMatch.map((a) => a.email.toLowerCase()).filter(Boolean));
+    const found = new Map();                                    // email -> application (newest first wins)
+    if (wanted.size) {
+      const keys = (await listAll(kv, APPLICATION_PREFIX)).map((k) => k.name);
+      keys.sort().reverse();                                    // keys lead with an ISO timestamp
+      const candidates = keys.slice(0, MAX_FALLBACK_SCAN);
+      for (let i = 0; i < candidates.length && found.size < wanted.size; i += BATCH) {
+        const apps = await Promise.all(candidates.slice(i, i + BATCH).map((k) => getJson(kv, k)));
+        for (const app of apps) {                               // still newest-first within the batch
+          const email = app && typeof app.email === "string" ? app.email.trim().toLowerCase() : "";
+          if (email && wanted.has(email) && !found.has(email)) found.set(email, app);
+        }
+      }
+    }
+    for (const aff of needEmailMatch) {
+      result.set(aff.code, fromApplication(found.get(aff.email.toLowerCase()) || null));
+    }
+  }
+  return result;
+}
+
+async function buildListing(kv) {
+  const [affiliates, orders, payouts] = await Promise.all([
+    loadAffiliates(kv),
+    loadOrders(kv, REFERRAL_PREFIX),
+    loadPayoutTotals(kv, PAYOUT_PREFIX)
+  ]);
+  const details = await resolvePayoutDetails(kv, affiliates);
+
+  const agg = new Map();                                        // code -> running totals, in kobo
+  const slot = (code) => {
+    if (!agg.has(code)) agg.set(code, { orders: 0, salesK: 0, earnedK: 0, paidK: 0, last: null });
+    return agg.get(code);
+  };
+  for (const o of orders) {
+    const a = slot(o.code);
+    a.orders += 1;
+    a.salesK += toKobo(o.total);
+    a.earnedK += toKobo(o.commission);
+    if (o.timestamp && (!a.last || o.timestamp > a.last)) a.last = o.timestamp;
+  }
+  for (const p of payouts) slot(p.code).paidK += toKobo(p.amount);
+
+  const registered = new Map(affiliates.map((a) => [a.code, a]));
+  const codes = new Set([...registered.keys(), ...agg.keys()]);
+
+  const rows = [];
+  for (const code of codes) {
+    const a = agg.get(code) || { orders: 0, salesK: 0, earnedK: 0, paidK: 0, last: null };
+    const aff = registered.get(code);
+    const extra = aff ? details.get(code) : null;
+    rows.push({
+      code,
+      name: aff ? aff.name : "",
+      email: aff ? aff.email : "",
+      phone: extra ? extra.phone : "",
+      approved_at: aff ? aff.approved_at : null,
+      unregistered: !aff,
+      orders: a.orders,
+      total_sales_ngn: fromKobo(a.salesK),
+      ...figures(a.earnedK, a.paidK),
+      last_order_at: a.last,
+      payout: extra ? extra.payout : null
+    });
+  }
+  rows.sort((x, y) =>
+    y.balance_due_ngn - x.balance_due_ngn ||
+    y.commission_earned_ngn - x.commission_earned_ngn ||
+    x.code.localeCompare(y.code)
+  );
+
+  const sum = (pick) => rows.reduce((acc, r) => acc + toKobo(pick(r)), 0);
+  const totals = {
+    affiliates: rows.filter((r) => !r.unregistered).length,
+    unregistered_codes: rows.filter((r) => r.unregistered).length,
+    active_affiliates: rows.filter((r) => !r.unregistered && r.orders > 0).length,
+    orders: rows.reduce((acc, r) => acc + r.orders, 0),
+    total_sales_ngn: fromKobo(sum((r) => r.total_sales_ngn)),
+    commission_ngn: fromKobo(sum((r) => r.commission_earned_ngn)),
+    commission_earned_ngn: fromKobo(sum((r) => r.commission_earned_ngn)),
+    paid_ngn: fromKobo(sum((r) => r.paid_ngn)),
+    balance_due_ngn: fromKobo(sum((r) => r.balance_due_ngn)),
+    overpaid_ngn: fromKobo(sum((r) => r.overpaid_ngn))
+  };
+  return { rows, totals };
+}
+
+async function buildDetail(kv, code) {
+  const [orders, payoutKeys] = await Promise.all([
+    loadOrders(kv, `${REFERRAL_PREFIX}${code}:`),            // trailing colon: ADE must not match ADEBAYO01
+    listAll(kv, `${PAYOUT_PREFIX}${code}:`)
+  ]);
+
+  const payouts = (await mapBatched(payoutKeys, async (key) => {
+    const value = await getJson(kv, key.name);
+    const meta = key.metadata || {};
+    const amount = value ? Number(value.amount_ngn) : Number(meta.a);
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+    return {
+      key: key.name,
+      amount_ngn: amount,
+      paid_on: (value && value.paid_on) || meta.ts || null,
+      reference: (value && value.reference) || "",
+      note: (value && value.note) || ""
+    };
+  })).filter(Boolean);
+
+  orders.sort((a, b) => String(b.timestamp || "").localeCompare(String(a.timestamp || "")));
+  payouts.sort((a, b) => String(b.paid_on || "").localeCompare(String(a.paid_on || "")) || b.key.localeCompare(a.key));
+
+  const earnedK = orders.reduce((acc, o) => acc + toKobo(o.commission), 0);
+  const paidK = payouts.reduce((acc, p) => acc + toKobo(p.amount_ngn), 0);
+  const f = figures(earnedK, paidK);
+
+  return {
+    code,
+    summary: {
+      orders: orders.length,
+      total_sales_ngn: fromKobo(orders.reduce((acc, o) => acc + toKobo(o.total), 0)),
+      commission_earned_ngn: f.commission_earned_ngn,
+      paid_ngn: f.paid_ngn,
+      balance_due_ngn: f.balance_due_ngn,
+      overpaid: f.overpaid
+    },
+    orders_detail: orders.map((o) => ({
+      tx_ref: o.tx_ref,
+      timestamp: o.timestamp,
+      order_total_ngn: o.total,
+      commission_ngn: fromKobo(toKobo(o.commission))
+    })),
+    payouts_detail: payouts
+  };
 }
 
 export async function onRequestPost(context) {
@@ -82,98 +428,38 @@ export async function onRequestPost(context) {
   } catch (err) {
     return json({ ok: false, error: "Body must be valid JSON." }, 400);
   }
+  if (!body || typeof body !== "object") {
+    return json({ ok: false, error: "Body must be a JSON object." }, 400);
+  }
 
   const supplied = typeof body.password === "string" ? body.password : "";
   if (!timingSafeEqual(supplied, env.ADMIN_REPORT_PASSWORD)) {
     return json({ ok: false, error: "Incorrect password." }, 401);
   }
 
-  const byCode = new Map();
-  let cursor;
-  let listComplete = false;
+  // Detail for one affiliate (the expanded row).
+  if (body.code !== undefined) {
+    const rawCode = typeof body.code === "string" ? body.code.trim() : "";
+    if (!DETAIL_CODE_PATTERN.test(rawCode)) {
+      return json({ ok: false, error: "Invalid code." }, 400);
+    }
+    try {
+      return json({ ok: true, generated_at: new Date().toISOString(), ...(await buildDetail(env.REFERRALS_KV, rawCode.toUpperCase())) });
+    } catch (err) {
+      return json({ ok: false, error: "Could not read that affiliate's records." }, 500);
+    }
+  }
 
   try {
-    while (!listComplete) {
-      const page = await env.REFERRALS_KV.list({ prefix: KEY_PREFIX, cursor, limit: 1000 });
-
-      for (const key of page.keys) {
-        const meta = key.metadata;
-        let code;
-        let total;
-        let commission;
-        let timestamp;
-
-        if (meta && typeof meta.t === "number") {
-          code = meta.c;
-          total = meta.t;
-          commission = typeof meta.m === "number" ? meta.m : meta.t * COMMISSION_RATE;
-          timestamp = meta.ts;
-        } else {
-          // Older record, or metadata unavailable — read the value.
-          const raw = await env.REFERRALS_KV.get(key.name);
-          if (!raw) continue;
-          try {
-            const value = JSON.parse(raw);
-            code = value.ref_code;
-            total = Number(value.order_total_ngn);
-            commission = Number(value.commission_ngn);
-            timestamp = value.timestamp;
-          } catch (err) {
-            continue;
-          }
-        }
-
-        // Last resort: recover the code from the key itself
-        // (referral:{code}:{tx_ref}).
-        if (!code) code = key.name.split(":")[1] || "(unknown)";
-        if (!Number.isFinite(total)) continue;
-        if (!Number.isFinite(commission)) commission = total * COMMISSION_RATE;
-
-        const row = byCode.get(code) || {
-          code,
-          orders: 0,
-          total_sales_ngn: 0,
-          commission_ngn: 0,
-          last_order_at: null
-        };
-        row.orders += 1;
-        row.total_sales_ngn += total;
-        row.commission_ngn += commission;
-        if (timestamp && (!row.last_order_at || timestamp > row.last_order_at)) {
-          row.last_order_at = timestamp;
-        }
-        byCode.set(code, row);
-      }
-
-      cursor = page.cursor;
-      listComplete = page.list_complete === true || !page.cursor;
-    }
+    const { rows, totals } = await buildListing(env.REFERRALS_KV);
+    return json({
+      ok: true,
+      commission_rate: COMMISSION_RATE,
+      generated_at: new Date().toISOString(),
+      rows,
+      totals
+    });
   } catch (err) {
     return json({ ok: false, error: "Could not read referral records." }, 500);
   }
-
-  const rows = Array.from(byCode.values())
-    .map((row) => ({
-      ...row,
-      total_sales_ngn: Math.round(row.total_sales_ngn * 100) / 100,
-      commission_ngn: Math.round(row.commission_ngn * 100) / 100
-    }))
-    .sort((a, b) => b.commission_ngn - a.commission_ngn);
-
-  const totals = rows.reduce(
-    (acc, row) => ({
-      orders: acc.orders + row.orders,
-      total_sales_ngn: Math.round((acc.total_sales_ngn + row.total_sales_ngn) * 100) / 100,
-      commission_ngn: Math.round((acc.commission_ngn + row.commission_ngn) * 100) / 100
-    }),
-    { orders: 0, total_sales_ngn: 0, commission_ngn: 0 }
-  );
-
-  return json({
-    ok: true,
-    commission_rate: COMMISSION_RATE,
-    generated_at: new Date().toISOString(),
-    rows,
-    totals
-  });
 }

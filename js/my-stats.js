@@ -30,6 +30,8 @@
     els.orders.textContent = String(data.orders);
     els.sales.textContent = money(data.total_sales_ngn);
     els.commission.textContent = money(data.commission_ngn);
+    els.paid.textContent = money(data.paid_ngn);
+    els.balance.textContent = money(data.balance_due_ngn);
     els.link.textContent = window.location.origin + "/?ref=" + data.code;
     // Nothing logged yet is a normal state for a new affiliate, not an error.
     els.empty.hidden = data.orders > 0;
@@ -72,6 +74,8 @@
     els.orders = document.getElementById("stat-orders");
     els.sales = document.getElementById("stat-sales");
     els.commission = document.getElementById("stat-commission");
+    els.paid = document.getElementById("stat-paid");
+    els.balance = document.getElementById("stat-balance");
     els.link = document.getElementById("stats-link");
     els.empty = document.getElementById("stats-empty");
     els.form = document.getElementById("stats-form");

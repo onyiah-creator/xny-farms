@@ -5,7 +5,14 @@
  * totals for ONE code and nothing else — no other affiliate's figures, no
  * customer details, no order-level data, and no list of which codes exist.
  *
- * Response: { ok, code, approved, orders, total_sales_ngn, commission_ngn }
+ * Response: { ok, code, approved, orders, total_sales_ngn, commission_ngn,
+ *             paid_ngn, balance_due_ngn }
+ *
+ * paid_ngn is the total the admin has recorded as sent to this code
+ * (payout:{CODE}:… records, summed from metadata); balance_due_ngn is earned
+ * minus paid, never negative. Bank details, payout references and notes are
+ * NEVER returned here: this endpoint is public and only ever reads the
+ * metadata of the payout records, not their values.
  *
  * Scoping: referral records are keyed "referral:{CODE}:{tx_ref}", and this
  * lists with the prefix "referral:{CODE}:" — note the TRAILING COLON. It
@@ -122,6 +129,35 @@ async function handle(request, env) {
     return json({ ok: false, error: "Could not read your referral records." }, 500);
   }
 
+  // Payments the admin has recorded for this code. Metadata only (no get()),
+  // so nothing but the amount is ever read. The trailing colon scopes the
+  // prefix to this code, exactly as for referrals above.
+  let paidKobo = 0;
+  try {
+    cursor = undefined;
+    listComplete = false;
+    while (!listComplete) {
+      const page = await env.REFERRALS_KV.list({
+        prefix: `payout:${code}:`,
+        cursor,
+        limit: 1000
+      });
+      for (const key of page.keys) {
+        let amount = key.metadata && typeof key.metadata.a === "number" ? key.metadata.a : NaN;
+        if (!Number.isFinite(amount)) {
+          const raw = await env.REFERRALS_KV.get(key.name);
+          try { amount = Number(JSON.parse(raw).amount_ngn); } catch (err) { continue; }
+        }
+        if (Number.isFinite(amount) && amount > 0) paidKobo += Math.round(amount * 100);
+      }
+      cursor = page.cursor;
+      listComplete = page.list_complete === true || !page.cursor;
+    }
+  } catch (err) {
+    return json({ ok: false, error: "Could not read your referral records." }, 500);
+  }
+  const earnedKobo = Math.round(commission * 100);
+
   return json({
     ok: true,
     code,
@@ -130,6 +166,8 @@ async function handle(request, env) {
     orders,
     total_sales_ngn: Math.round(sales * 100) / 100,
     commission_ngn: Math.round(commission * 100) / 100,
+    paid_ngn: paidKobo / 100,
+    balance_due_ngn: Math.max(0, earnedKobo - paidKobo) / 100,
     last_order_at: lastOrderAt,
     generated_at: new Date().toISOString()
   });

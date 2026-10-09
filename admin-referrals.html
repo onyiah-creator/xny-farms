@@ -9,11 +9,11 @@
   <meta name="robots" content="noindex, nofollow, noarchive" />
   <link rel="icon" href="assets/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
-  <link rel="stylesheet" href="css/styles.css?v=13" />
+  <link rel="stylesheet" href="css/styles.css?v=14" />
 </head>
 <body>
 
-  <header class="site-header">
+  <header class="site-header no-print">
     <div class="container">
       <nav class="nav" aria-label="Primary">
         <a href="index.html" class="brand" aria-label="XNY Farms Limited home">
@@ -23,16 +23,16 @@
     </div>
   </header>
 
-  <section class="page-hero">
+  <section class="page-hero no-print">
     <div class="container">
       <p class="eyebrow" style="color:var(--amber-400)">Internal &mdash; Not Public</p>
-      <h1>Referral Report</h1>
-      <p>Commission owed to distributors and affiliates, by referral code.</p>
+      <h1>Referral &amp; Payout Report</h1>
+      <p>What each affiliate has earned, what has been paid, what is still owed &mdash; and where to send it.</p>
     </div>
   </section>
 
   <section class="section section--white">
-    <div class="container admin-wrap">
+    <div class="container admin-wrap admin-wrap--wide">
 
       <!-- Password gate -->
       <div class="form-card" id="admin-gate">
@@ -51,51 +51,90 @@
 
       <!-- Report -->
       <div id="admin-report" hidden>
-        <div class="admin-meta">
+        <div class="admin-meta no-print">
           <p class="form-note" style="margin:0">
             Commission rate: <strong id="admin-rate">&mdash;</strong> of order subtotal &middot;
             Generated <span id="admin-generated">&mdash;</span>
           </p>
           <div style="display:flex;gap:.6rem;flex-wrap:wrap">
             <a href="admin-approve-affiliate.html" class="btn btn--green">Approve an Affiliate</a>
-            <a href="affiliate-signup.html" class="btn btn--outline">Become an Affiliate (signup form)</a>
             <button type="button" class="btn btn--outline" id="admin-refresh">Refresh</button>
+            <button type="button" class="btn btn--outline" id="admin-print">Print / Save as PDF</button>
+          </div>
+        </div>
+        <p class="print-only form-note" id="admin-print-meta"></p>
+
+        <p id="admin-notice" class="form-status" role="status" aria-live="polite"></p>
+
+        <div class="stat-grid stat-grid--6" id="admin-summary">
+          <div class="stat-card"><p class="stat-card__label">Total sales</p><p class="stat-card__value" id="sum-sales">&#8358;0</p></div>
+          <div class="stat-card"><p class="stat-card__label">Commission earned</p><p class="stat-card__value" id="sum-earned">&#8358;0</p></div>
+          <div class="stat-card"><p class="stat-card__label">Paid out</p><p class="stat-card__value" id="sum-paid">&#8358;0</p></div>
+          <div class="stat-card stat-card--accent"><p class="stat-card__label">Balance due</p><p class="stat-card__value" id="sum-balance">&#8358;0</p><p class="stat-card__sub" id="sum-overpaid" hidden></p></div>
+          <div class="stat-card"><p class="stat-card__label">Active affiliates</p><p class="stat-card__value" id="sum-active">0</p><p class="stat-card__sub" id="sum-registered"></p></div>
+          <div class="stat-card"><p class="stat-card__label">Orders</p><p class="stat-card__value" id="sum-orders">0</p></div>
+        </div>
+
+        <div class="admin-tools no-print">
+          <div class="field admin-tools__search">
+            <label for="admin-search">Search</label>
+            <input id="admin-search" type="search" placeholder="Name, code or email" autocomplete="off" />
+          </div>
+          <label class="admin-tools__check"><input type="checkbox" id="admin-filter-due" /> Balance due only</label>
+          <label class="admin-tools__check"><input type="checkbox" id="admin-hide-zero" /> Hide affiliates with no orders</label>
+          <div class="admin-tools__export">
+            <button type="button" class="btn btn--outline" id="admin-export">Export CSV</button>
+            <p class="form-note" style="margin:.3rem 0 0">&#9888; The file contains bank account details. Store it securely and delete it when done.</p>
           </div>
         </div>
 
         <div class="admin-table-wrap">
-          <table class="admin-table">
+          <table class="admin-table admin-table--payouts" id="admin-table">
             <thead>
               <tr>
-                <th scope="col">Code</th>
-                <th scope="col" class="num">Number of Orders</th>
-                <th scope="col" class="num">Total Sales (NGN)</th>
-                <th scope="col" class="num">Commission Owed (NGN)</th>
+                <th scope="col">Affiliate</th>
+                <th scope="col" class="num">Orders</th>
+                <th scope="col" class="num">Sales</th>
+                <th scope="col" class="num">Earned</th>
+                <th scope="col" class="num">Paid</th>
+                <th scope="col" class="num">Balance due</th>
+                <th scope="col">Last order</th>
               </tr>
             </thead>
             <tbody id="admin-rows"></tbody>
             <tfoot>
               <tr>
-                <th scope="row">All codes</th>
-                <td class="num" id="admin-total-orders">0</td>
-                <td class="num" id="admin-total-sales">&#8358;0</td>
-                <td class="num" id="admin-total-commission">&#8358;0</td>
+                <th scope="row" id="admin-foot-label">All affiliates</th>
+                <td class="num" data-label="Orders" id="admin-total-orders">0</td>
+                <td class="num" data-label="Sales" id="admin-total-sales">&#8358;0</td>
+                <td class="num" data-label="Earned" id="admin-total-earned">&#8358;0</td>
+                <td class="num" data-label="Paid" id="admin-total-paid">&#8358;0</td>
+                <td class="num" data-label="Balance due" id="admin-total-balance">&#8358;0</td>
+                <td></td>
               </tr>
             </tfoot>
           </table>
         </div>
 
-        <p id="admin-empty" class="form-note" hidden>No referral orders have been logged yet.</p>
+        <p id="admin-empty" class="form-note" hidden>No affiliates match.</p>
 
         <p class="form-note">
-          <strong>Total Sales</strong> is the sum of order subtotals, excluding delivery fees &mdash;
-          that is the amount commission is calculated on. Before paying commission, reconcile each
-          order against the Flutterwave dashboard: these records are written by the customer's browser
+          <strong>Sales</strong> is the sum of order subtotals, excluding delivery fees &mdash;
+          the amount commission is calculated on. <strong>Balance due</strong> is earned minus paid
+          and is never shown below zero; an affiliate who has been paid more than they earned is
+          flagged <em>overpaid</em>. <strong>Before paying commission, reconcile each order against
+          the Flutterwave dashboard:</strong> order records are written by the customer's browser
           and are not independently verified.
+        </p>
+        <p class="form-note">
+          <strong>Payments are recorded by hand.</strong> This site never sends money: pay the
+          affiliate by bank transfer (or any other way) first, then use <em>Record payment</em> in
+          their row so the balance stays right. Bank details are personal data (NDPR): they are
+          masked on screen until you choose <em>Reveal</em>.
         </p>
       </div>
 
-      <p class="form-note admin-links" style="margin-top:1.5rem">
+      <p class="form-note admin-links no-print" style="margin-top:1.5rem">
         <a href="admin.html">&larr; Admin tools</a>
         <a href="admin-approve-affiliate.html">View Affiliate Approvals &rarr;</a>
       </p>
@@ -103,6 +142,6 @@
     </div>
   </section>
 
-  <script src="js/admin-referrals.js?v=13"></script>
+  <script src="js/admin-referrals.js?v=14"></script>
 </body>
 </html>

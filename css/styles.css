@@ -787,6 +787,111 @@ html[data-focus-product] .product-group.is-focus-group .grid--2 {
   background: var(--cream-dark); font-weight: 700; color: var(--green-900);
 }
 
+/* ---------- Payout report additions (admin-referrals.html) ---------- */
+.admin-wrap.admin-wrap--wide { max-width: 1120px; }
+.btn--sm { padding: .35rem .85rem; font-size: .82rem; border-width: 1.5px; }
+.print-only { display: none; }
+
+.stat-grid.stat-grid--6 { grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.stat-grid.stat-grid--2 { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 480px) { .stat-grid.stat-grid--2 { grid-template-columns: 1fr; } }
+.stat-card__sub { margin: .35rem 0 0; font-size: .8rem; color: var(--muted); }
+@media (max-width: 800px) { .stat-grid.stat-grid--6 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px) { .stat-grid.stat-grid--6 { grid-template-columns: 1fr; } }
+
+.admin-tools {
+  display: flex; flex-wrap: wrap; gap: .8rem 1.4rem; align-items: flex-end;
+  margin: 0 0 1rem;
+}
+.admin-tools__search { flex: 1 1 240px; min-width: 0; }
+.admin-tools__check { display: flex; align-items: center; gap: .45rem; font-size: .92rem; font-weight: 600; padding-bottom: .55rem; }
+.admin-tools__export { flex: 0 1 auto; max-width: 300px; }
+
+.admin-table--payouts { min-width: 760px; }
+.admin-table--payouts tbody th { font-weight: 400; }
+.admin-table .is-due { color: #8a5a00; }
+.pr-row.is-open { background: var(--cream); }
+.aff-cell { vertical-align: middle; }
+.aff-toggle {
+  display: inline-flex; align-items: center; gap: .55rem; text-align: left;
+  background: none; border: 0; padding: .1rem 0; cursor: pointer; color: inherit; font: inherit;
+}
+.aff-toggle:focus-visible { outline: 2px solid var(--green-700); outline-offset: 3px; border-radius: 4px; }
+.aff-toggle__chev { display: inline-block; color: var(--green-700); transition: transform .15s ease; }
+.aff-toggle[aria-expanded="true"] .aff-toggle__chev { transform: rotate(90deg); }
+.aff-toggle__who { display: flex; flex-direction: column; min-width: 0; }
+.aff-toggle__name { font-family: var(--font-head); font-weight: 700; color: var(--green-800); overflow-wrap: anywhere; }
+.aff-toggle__code { font-size: .78rem; letter-spacing: .06em; color: var(--muted); }
+.aff-cell .badge { margin: 0 0 0 .4rem; padding: .15rem .5rem; font-size: .66rem; }
+.badge--warn { background: #fde8e4; color: #8f2d20; }
+.badge--info { background: var(--amber-100); color: #6b6a02; }
+
+.aff-detail > td { padding: 0; background: var(--cream); }
+.aff-panel { padding: 1.1rem 1.1rem 1.3rem; display: flex; flex-direction: column; gap: 1.2rem; }
+.aff-panel__top { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+.aff-panel__block h3 { font-size: 1rem; margin: 0 0 .5rem; color: var(--green-900); }
+.aff-panel__block .app-card__grid { margin-bottom: 0; }
+.acct { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.acct__number { font-family: "Courier New", monospace; font-weight: 700; letter-spacing: .08em; color: var(--green-900); }
+.payout-form__grid { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem 1rem; }
+.payout-form__actions { margin-top: .9rem; }
+.payout-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
+.payout-list__item {
+  display: grid; grid-template-columns: 1fr auto; gap: .2rem .8rem; align-items: center;
+  background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: .6rem .8rem;
+}
+.payout-list__ref { margin-left: .7rem; font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
+.payout-list__note { grid-column: 1; font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
+.payout-list__item .btn { grid-column: 2; grid-row: 1 / span 2; }
+.admin-table--mini th, .admin-table--mini td { padding: .45rem .7rem; font-size: .88rem; }
+
+/* Phone: each row becomes a card (the 7 columns can't fit side by side). */
+@media (max-width: 700px) {
+  .admin-table--payouts { min-width: 0; border: 0; background: transparent; }
+  .admin-table--payouts > thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  /* child combinators only: the small orders table inside a panel keeps its normal table layout */
+  .admin-table--payouts, .admin-table--payouts > tbody, .admin-table--payouts > tfoot,
+  .admin-table--payouts > tbody > tr, .admin-table--payouts > tfoot > tr,
+  .admin-table--payouts > tbody > tr > th, .admin-table--payouts > tbody > tr > td,
+  .admin-table--payouts > tfoot > tr > th, .admin-table--payouts > tfoot > tr > td { display: block; width: 100%; }
+  .admin-table--payouts > thead { display: block; }
+  .admin-table--payouts > tbody > tr.pr-row,
+  .admin-table--payouts > tfoot > tr {
+    background: var(--white); border: 1px solid var(--line); border-radius: var(--radius);
+    margin-top: .8rem; padding: .5rem .8rem .7rem; box-shadow: var(--shadow-sm);
+  }
+  .admin-table--payouts > tbody > tr.pr-row.is-open { border-bottom-left-radius: 0; border-bottom-right-radius: 0; margin-bottom: 0; background: var(--cream); }
+  .admin-table--payouts > tbody > tr.aff-detail { border: 1px solid var(--line); border-top: 0; border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; }
+  .admin-table--payouts > tbody > tr > th, .admin-table--payouts > tfoot > tr > th { border: 0; padding: .4rem 0; }
+  .admin-table--payouts > tbody > tr.pr-row > td, .admin-table--payouts > tfoot > tr > td {
+    display: flex; justify-content: space-between; gap: 1rem; border: 0; padding: .2rem 0; text-align: right;
+  }
+  .admin-table--payouts > tbody > tr.pr-row > td::before, .admin-table--payouts > tfoot > tr > td::before {
+    content: attr(data-label); font-weight: 600; color: var(--muted); text-align: left;
+  }
+  .admin-table--payouts > tfoot > tr > td:empty { display: none; }
+  .admin-table--payouts > tbody > tr.aff-detail > td { display: block; padding: 0; }
+  .aff-panel__top, .payout-form__grid { grid-template-columns: 1fr; }
+  .admin-table--mini { min-width: 420px; }
+}
+
+/* Print / Save as PDF: the full table, no controls, no panels, no chrome. */
+@media print {
+  .no-print, .site-header, .admin-links, .admin-tools, .aff-detail, .aff-toggle__chev { display: none !important; }
+  .print-only { display: block; }
+  .section { padding: 0; }
+  .admin-wrap, .admin-wrap.admin-wrap--wide { max-width: none; padding: 0; }
+  .admin-table-wrap { overflow: visible; }
+  .admin-table--payouts { min-width: 0; font-size: 11px; }
+  .admin-table th, .admin-table td { padding: .3rem .4rem; font-size: 11px; }
+  .pr-row.is-open { background: none; }
+  .stat-grid.stat-grid--6 { grid-template-columns: repeat(3, 1fr); gap: .5rem; }
+  .stat-card { box-shadow: none; padding: .5rem .7rem; break-inside: avoid; }
+  .stat-card__value { font-size: 1.1rem; }
+  tr { break-inside: avoid; }
+  body { background: #fff; }
+}
+
 /* ---------- Footer ---------- */
 .site-footer { background: var(--green-900); color: #d9dcc9; padding: 3rem 0 1.5rem; }
 .site-footer a { color: var(--amber-100); }

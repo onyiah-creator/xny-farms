@@ -538,7 +538,8 @@ backstop only. One side effect: clients that *do* honour `color-scheme: light
 dark` (Apple Mail, parts of Outlook) treat the email as dark-mode-aware and stop
 auto-darkening it, so there it stays in its light design.
 Run the tests with `node tests/send-affiliate-email.test.mjs` (no
-dependencies; KV and Resend are mocked). They check what would be sent, not how
+dependencies; KV and Resend are mocked). The payout report has its own suite:
+`node tests/referral-report.test.mjs`. They check what would be sent, not how
 Gmail renders it — for that, send a real email to a test affiliate.
 
 ### ⚠️ Only approved codes earn commission
@@ -553,25 +554,68 @@ are not recorded and cannot be recovered afterwards.
 
 ### Affiliates checking their own stats
 Affiliates can see their own numbers at
-**`/my-stats.html?code=THEIRCODE`** — orders, total sales and commission
-earned. No password: the page needs only the code, and the endpoint returns
+**`/my-stats.html?code=THEIRCODE`** — orders, total sales, commission
+earned, **paid out** and **balance due**. No password: the page needs only the code, and the endpoint returns
 that one code's totals and nothing else (no other affiliate's figures, no
-customer details, no order-level data). The link is included in the welcome
+customer details, no order-level data, and **never bank details**, payment
+references or notes: it reads only the amounts from the payout records' KV
+metadata). The link is included in the welcome
 email.
 
 Because it needs no password, anyone who is given or guesses a code can see
-that code's totals. It exposes no personal data, but if you consider earnings
-sensitive, issue codes that aren't easy to guess.
+that code's totals, including how much has been paid to it. It exposes no
+personal data, but if you consider earnings sensitive, issue codes that aren't easy to guess.
 
-### Viewing the report
+### Viewing the report, and paying affiliates
 Go to **`/admin-referrals.html`** (e.g. `https://xnyfarms.com/admin-referrals.html`)
-and enter the `ADMIN_REPORT_PASSWORD`. You'll get a table of
-**Code | Number of Orders | Total Sales | Commission Owed**.
+and enter the `ADMIN_REPORT_PASSWORD`. You get:
 
-The page is deliberately **not linked from any nav or menu** — bookmark it.
+- **Summary cards:** total sales, commission earned, paid out, **balance due**,
+  active affiliates and orders.
+- **A table, largest balance due first:** affiliate, orders, sales, earned, paid,
+  balance due, last order. One row per *approved* affiliate (including those with
+  no orders yet), plus any referral code that has orders but no affiliate record,
+  flagged **unregistered**. *Balance due* is earned minus paid and is never shown
+  below zero; an affiliate paid more than they earned gets an **overpaid** flag
+  (the overpayment is shown separately, it does not cancel anyone else's balance).
+- **Search** (name, code, email), **Balance due only**, **Hide affiliates with no
+  orders**, **Export CSV** and **Print / Save as PDF**.
+- **Click a row** to expand it: contact details, where to send the money (bank,
+  account holder, account number), the order-by-order list, the payments made so
+  far, and a **Record payment** form (amount prefilled with the balance due).
+
+**Paying an affiliate is a manual, two-step job.** The site never moves money.
+(1) Send the money yourself (bank transfer, a Flutterwave transfer, cash).
+(2) Click **Record payment** in their row, fill in the amount, date and
+(optionally) the transfer reference. You are asked to confirm first. A mistaken
+entry can be removed with **Remove** next to it (that only deletes the entry in
+this report; it does not reverse any money already sent). **Reconcile the orders
+against the Flutterwave dashboard before paying**: order records are written by
+customers' browsers and are not verified (see the trust warning below).
+
+**Bank details (NDPR).** Account numbers are shown masked (`******4821`) until
+you press **Reveal**; **Copy account number** copies the full number regardless.
+They are never written to the console or put in a URL. The CSV export contains
+full account numbers (and a warning says so): store it securely and delete it
+once the payments are made. Under the NDPR you should keep bank details only as
+long as you need them, and delete the application records (see below) for
+affiliates you no longer pay. In the CSV, account and phone numbers are written
+as `="0123456789"` so Excel and Google Sheets keep the leading zero; other
+spreadsheet programs may show the `="..."` wrapper.
+
+**How an affiliate is matched to their bank details.** Approving someone from the
+pending-applications list stores that application's key on the affiliate record
+(`application_key`). Affiliates approved before that existed have none, so the
+report falls back to the **most recent application with the same email address**
+(case-insensitive). If neither exists the row says *No payout details on file*.
+That email fallback reads the stored applications (the newest 500, once per
+report load, only when some affiliate needs it); affiliates with a key cost one
+read each. Per-order detail is only loaded for the row you expand.
+
+The page is deliberately **not linked from any public nav or menu**: bookmark it.
 It carries a `noindex, nofollow` meta tag and an `X-Robots-Tag` header (see
 `_headers`) so search engines skip it. Note that this is *obscurity plus a
-password*, not real access control — anyone who learns the URL still needs
+password*, not real access control: anyone who learns the URL still needs
 the password, so use a strong one.
 
 ### How it works
@@ -579,24 +623,31 @@ the password, so use a strong one.
 | --- | --- |
 | `js/referral.js` | Loaded on every page. Captures `?ref=`, stores it, and POSTs completed orders to the logging endpoint. |
 | `functions/api/log-referral.js` | Pages Function. Validates the payload, **checks the code is an approved affiliate**, computes 8% commission, writes to KV as `referral:{CODE}:{tx_ref}`. |
-| `functions/api/get-referrals.js` | Pages Function. Password-checks, then aggregates all KV records by code. |
+| `functions/api/get-referrals.js` | Pages Function. Password-checked payout report: per affiliate and in total, earned / paid / balance due plus payout details. With `{ "code": ... }` it returns that one affiliate's orders and payments. |
+| `functions/api/record-payout.js` | Pages Function. Password-checked; records a payment made to an affiliate (`payout:{CODE}:...`), or removes one with `{ delete_key }` (only `payout:` keys are accepted). |
 | `functions/api/register-affiliate.js` | Pages Function. Password-checked code assignment; writes `affiliate:{CODE}` and marks the linked application approved. |
 | `functions/api/send-affiliate-email.js` | Pages Function. Password-checked; emails an approved affiliate their welcome message via Resend. |
 | `functions/api/get-affiliates.js` | Pages Function. Password-checked; lists approved affiliates for the resend list. |
 | `functions/api/submit-affiliate-application.js` | Pages Function. Public; stores a signup application as `application:{timestamp}-{id}` with status `pending`. |
 | `functions/api/get-pending-applications.js` | Pages Function. Password-checked; lists applications still pending, newest first. |
-| `functions/api/get-my-stats.js` | Pages Function. Public, returns one code's own totals only. |
-| `admin-referrals.html` + `js/admin-referrals.js` | The report page. |
+| `functions/api/get-my-stats.js` | Pages Function. Public, returns one code's own totals only (orders, sales, earned, paid, balance due; never bank details). |
+| `admin-referrals.html` + `js/admin-referrals.js` | The referral & payout report page. |
 | `admin-approve-affiliate.html` + `js/admin-approve-affiliate.js` | Approve an affiliate, assign their code, send/resend their welcome email. |
 | `my-stats.html` + `js/my-stats.js` | Affiliate self-check page. |
 | `affiliate-signup.html` | Public application form (mailto:, reviewed by hand). |
 
-KV keys used: `affiliate:{CODE}` (one per approved affiliate),
-`referral:{CODE}:{tx_ref}` (one per recorded sale) and
-`application:{timestamp}-{id}` (one per signup application).
+KV keys used: `affiliate:{CODE}` (one per approved affiliate; value
+`{name, email, approved_at, application_key?}`, metadata `{n, e, at, k?}`),
+`referral:{CODE}:{tx_ref}` (one per recorded sale; metadata `{c, t, m, ts}`),
+`payout:{CODE}:{timestamp}-{id}` (one per payment made to an affiliate; value
+`{code, amount_ngn, paid_on, reference, note, recorded_at}`, metadata
+`{c, a, ts}` so totals come from `list()` alone) and
+`application:{timestamp}-{id}` (one per signup application, holding bank
+details and phone).
 
 ### ⚠️ Applications hold personal data
-The signup form stores **bank details** in KV, not just in your inbox. Two
+The signup form stores **bank details** in KV, not just in your inbox (and the
+payout report reads them from there). Two
 things follow. First, `/api/submit-affiliate-application` is public and has
 no captcha or rate limiting — anyone who finds the URL can post junk into
 the pending list; if that becomes a problem, Cloudflare Turnstile is the

@@ -12,7 +12,9 @@
  *   email       string  affiliate's email     (not needed when check_only)
  *   check_only  bool    optional — report availability without writing
  *
- * Stores: key "affiliate:{CODE}", value {name, email, approved_at}.
+ * Stores: key "affiliate:{CODE}", value {name, email, approved_at, application_key?}.
+ * application_key (only when supplied, and only if it starts with "application:")
+ * links the affiliate to the application that holds their payout details.
  *
  * Codes are normalised to UPPERCASE here, in log-referral.js and in
  * get-my-stats.js, so a link typed as ?ref=adebayo01 credits the same
@@ -124,11 +126,25 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: "A valid affiliate email is required." }, 400);
   }
 
+  /* The application this approval came from. Its key is stored on the
+     affiliate record so the admin report can find the affiliate's payout
+     details (bank, phone) later. The key arrives from the browser, so it is
+     checked against the "application:" prefix before being used for anything:
+     without that guard a crafted request could point it, or the write below,
+     at any key in the namespace — an affiliate record or a referral sale
+     included. */
+  const applicationKey = typeof body.application_key === "string" ? body.application_key.trim() : "";
+  const validApplicationKey =
+    applicationKey.startsWith("application:") && applicationKey.length <= 200 ? applicationKey : "";
+
   const record = { name, email, approved_at: new Date().toISOString() };
+  if (validApplicationKey) record.application_key = validApplicationKey;
 
   try {
     await env.REFERRALS_KV.put(`affiliate:${code}`, JSON.stringify(record), {
-      metadata: { n: name, e: email, at: record.approved_at }
+      metadata: validApplicationKey
+        ? { n: name, e: email, at: record.approved_at, k: validApplicationKey }
+        : { n: name, e: email, at: record.approved_at }
     });
   } catch (err) {
     return json({ ok: false, error: "Could not save the affiliate record." }, 500);
@@ -138,26 +154,20 @@ export async function onRequestPost(context) {
      application approved so it drops off the pending list and can't be
      approved a second time by mistake.
 
-     The key is checked against the "application:" prefix before being
-     written to: it arrives from the browser, and without that guard a
-     crafted request could overwrite any key in the namespace —
-     an affiliate record or a referral sale included.
-
      A failure here is deliberately not fatal. The affiliate record above
      is already saved and is the thing that matters; the worst case is a
      stale row in the pending list, which is better than reporting the
      whole approval as failed and inviting a duplicate attempt. */
   let applicationUpdated = false;
-  const applicationKey = typeof body.application_key === "string" ? body.application_key.trim() : "";
-  if (applicationKey && applicationKey.startsWith("application:") && applicationKey.length <= 200) {
+  if (validApplicationKey) {
     try {
-      const raw = await env.REFERRALS_KV.get(applicationKey);
+      const raw = await env.REFERRALS_KV.get(validApplicationKey);
       if (raw) {
         const application = JSON.parse(raw);
         application.status = "approved";
         application.approved_code = code;
         application.approved_at = record.approved_at;
-        await env.REFERRALS_KV.put(applicationKey, JSON.stringify(application), {
+        await env.REFERRALS_KV.put(validApplicationKey, JSON.stringify(application), {
           metadata: { s: "approved", n: String(application.name || "").slice(0, 80), at: record.approved_at }
         });
         applicationUpdated = true;
