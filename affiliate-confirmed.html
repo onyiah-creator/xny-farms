@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>My Affiliate Stats — XNY Farms Limited</title>
-  <meta name="description" content="Check your XNY Farms affiliate referral stats — orders, total sales and commission earned." />
+  <title>Affiliate Confirmed — XNY Farms Limited</title>
+  <meta name="robots" content="noindex, nofollow, noarchive" />
   <link rel="icon" href="assets/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png" />
@@ -51,112 +51,55 @@
   <section class="page-hero">
     <div class="container">
       <p class="eyebrow" style="color:var(--amber-400)">Affiliate Programme</p>
-      <h1 id="stats-heading">My Affiliate Stats</h1>
-      <p>Your referral performance with XNY Farms.</p>
+      <h1 id="confirmed-heading">Confirming your email&hellip;</h1>
     </div>
   </section>
 
-  <section class="section section--white">
-    <div class="container admin-wrap">
+  <section class="section section--cream">
+    <div class="container" style="max-width:720px">
 
-      <!-- Loading -->
-      <p id="stats-loading" class="lead" hidden>Loading your stats&hellip;</p>
+      <!-- status=ok -->
+      <div id="confirmed-ok" hidden>
+        <div class="confirmation-card">
+          <div class="confirmation-icon">&#9989;</div>
+          <h2>You&rsquo;re in. Welcome to the programme!</h2>
+          <p>Your email is confirmed and your affiliate account is active. Your referral code is:</p>
+          <p><span id="confirmed-code" class="confirmation-ref"></span></p>
 
-      <!-- No code in the URL -->
-      <div id="stats-nocode" hidden>
-        <div class="form-card">
-          <h2 style="font-size:1.3rem">Enter your referral code</h2>
-          <p>Add your referral code to the web address to check your stats &mdash; for example
-            <code>my-stats.html?code=YOURCODE</code>. The link in your welcome email already
-            has your code in it.</p>
-          <form id="stats-form">
-            <div class="field">
-              <label for="stats-code">Referral code</label>
-              <input id="stats-code" name="code" type="text" required autocomplete="off" placeholder="e.g. ADEBAYO01" />
+          <div class="admin-detail">
+            <p><strong>Your personal referral link</strong><br /><code id="confirmed-link"></code></p>
+            <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.7rem">
+              <button type="button" class="btn btn--green btn--sm" id="copy-link">Copy my link</button>
+              <button type="button" class="btn btn--outline btn--sm" id="copy-code">Copy my code</button>
             </div>
-            <div style="margin-top:1rem">
-              <button type="submit" class="btn btn--green">Check My Stats</button>
-            </div>
-          </form>
-          <p class="form-note">Not an affiliate yet? <a href="affiliate-signup.html">Apply to join the programme</a>.</p>
+            <p class="form-status" id="copy-status" role="status" aria-live="polite" style="margin:.5rem 0 0"></p>
+          </div>
+
+          <p style="margin-top:1.2rem"><a href="#" id="confirmed-stats" class="btn btn--outline">See my earnings page</a></p>
+          <p class="form-note">We&rsquo;ve also emailed you these details, so you can find them again. Not there? Check your spam folder, or use &ldquo;Resend my welcome email&rdquo; on the <a href="affiliate-signup.html#resend-welcome">signup page</a>.</p>
+          <p class="form-note">Commission is 8% of the order subtotal and is confirmed and paid after XNY Farms verifies each order.</p>
         </div>
       </div>
 
-      <!-- Resend my welcome email (public; always answers the same) -->
-      <div id="stats-resend" class="form-card resend-card" style="margin-top:1.4rem">
-        <h3 style="font-size:1.1rem">Lost your code or link? Resend my welcome email</h3>
-        <p class="form-note" style="margin-top:0">Enter the email you registered with and we&rsquo;ll send your details again.</p>
-        <form data-resend-welcome novalidate>
-          <div class="field">
-            <label for="rw-email">Registered email</label>
-            <input id="rw-email" name="email" type="email" required autocomplete="email" />
-          </div>
-          <div style="margin-top:.9rem"><button type="submit" class="btn btn--outline">Resend my welcome email</button></div>
-          <p class="form-status" role="status" aria-live="polite"></p>
-        </form>
-      </div>
-
-      <!-- Account paused -->
-      <div id="stats-paused" hidden>
-        <div class="form-card">
-          <h2 style="font-size:1.3rem">This account is paused</h2>
-          <p>The affiliate account for this code is paused for now, so there are no figures to show. Please get in touch and we&rsquo;ll sort it out: <a href="mailto:xnyfarms@gmail.com">xnyfarms@gmail.com</a> or +234 806 013 8299.</p>
+      <!-- status=expired -->
+      <div id="confirmed-expired" hidden>
+        <div class="confirmation-card">
+          <div class="confirmation-icon">&#8987;</div>
+          <h2>This link has expired</h2>
+          <p>Confirmation links work for 48 hours. After that your details are deleted automatically, so nothing is kept on file for you.</p>
+          <p><a class="btn btn--green" href="affiliate-signup.html">Sign up again</a></p>
+          <p class="form-note">Already confirmed earlier? Use &ldquo;Resend my welcome email&rdquo; on the <a href="affiliate-signup.html#resend-welcome">signup page</a> to get your code and link again.</p>
         </div>
       </div>
 
-      <!-- Results -->
-      <div id="stats-results" hidden>
-        <div class="stat-grid">
-          <div class="stat-card">
-            <p class="stat-card__label">Orders</p>
-            <p class="stat-card__value" id="stat-orders">0</p>
-          </div>
-          <div class="stat-card">
-            <p class="stat-card__label">Total Sales</p>
-            <p class="stat-card__value" id="stat-sales">&#8358;0</p>
-          </div>
-          <div class="stat-card stat-card--accent">
-            <p class="stat-card__label">Commission Earned</p>
-            <p class="stat-card__value" id="stat-commission">&#8358;0</p>
-          </div>
-        </div>
-
-        <div class="stat-grid stat-grid--2">
-          <div class="stat-card">
-            <p class="stat-card__label">Paid Out</p>
-            <p class="stat-card__value" id="stat-paid">&#8358;0</p>
-          </div>
-          <div class="stat-card stat-card--accent">
-            <p class="stat-card__label">Balance Due to You</p>
-            <p class="stat-card__value" id="stat-balance">&#8358;0</p>
-          </div>
-        </div>
-
-        <div id="stats-payments" class="pay-history" hidden>
-          <h2 style="font-size:1.2rem">Payments sent to you</h2>
-          <ul class="pay-history__list" id="stats-payments-list"></ul>
-        </div>
-
-        <p id="stats-empty" class="lead" hidden>No referral activity found yet for this code. Share your link and your first orders will show up here.</p>
-
-        <div class="admin-detail">
-          <p><strong>Your referral link</strong><br /><code id="stats-link"></code></p>
-        </div>
-
-        <p class="form-note">
-          Commission is <strong>8% of the order subtotal</strong> (before delivery), and is
-          confirmed and paid after XNY Farms verifies each order. <strong>Paid Out</strong> is the
-          total XNY Farms has recorded as sent to you; <strong>Balance Due</strong> is what you have
-          earned minus that. Figures here are a running tally, not a final statement.
-        </p>
-      </div>
-
-      <!-- Error -->
-      <div id="stats-error" hidden>
-        <div class="form-card">
-          <h2 style="font-size:1.3rem">We couldn&rsquo;t load those stats</h2>
-          <p id="stats-error-message"></p>
-          <p class="form-note">If this keeps happening, email us at <a href="mailto:xnyfarms@gmail.com">xnyfarms@gmail.com</a> with your referral code.</p>
+      <!-- status=invalid (or anything else) -->
+      <div id="confirmed-invalid" hidden>
+        <div class="confirmation-card">
+          <div class="confirmation-icon">&#10067;</div>
+          <h2>We couldn&rsquo;t use that link</h2>
+          <p>The link looks incomplete. Please open the button in your confirmation email again, or copy the whole link into your browser. If it still doesn&rsquo;t work, you can sign up again.</p>
+          <p><a class="btn btn--green" href="affiliate-signup.html">Back to signup</a></p>
+          <p class="form-note">Need a hand? Email <a href="mailto:xnyfarms@gmail.com">xnyfarms@gmail.com</a>.</p>
         </div>
       </div>
 
@@ -214,10 +157,7 @@
     </div>
   </footer>
 
-  <script src="js/referral.js?v=16"></script>
-  <script src="js/cart.js?v=16"></script>
-  <script src="js/resend-welcome.js?v=16"></script>
-  <script src="js/my-stats.js?v=16"></script>
   <script src="js/main.js?v=16"></script>
+  <script src="js/affiliate-confirmed.js?v=16"></script>
 </body>
 </html>

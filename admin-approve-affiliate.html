@@ -9,7 +9,7 @@
   <meta name="robots" content="noindex, nofollow, noarchive" />
   <link rel="icon" href="assets/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
-  <link rel="stylesheet" href="css/styles.css?v=15" />
+  <link rel="stylesheet" href="css/styles.css?v=16" />
 </head>
 <body>
 
@@ -27,7 +27,7 @@
     <div class="container">
       <p class="eyebrow" style="color:var(--amber-400)">Internal &mdash; Not Public</p>
       <h1>Approve an Affiliate</h1>
-      <p>Assign a referral code to an approved applicant and send them their welcome email.</p>
+      <p>Signups are automatic. Manage affiliates here: suspend, reactivate, resend welcome emails.</p>
     </div>
   </section>
 
@@ -52,16 +52,23 @@
       <!-- Signed in: pending applications + assignment form -->
       <div id="approve-main" hidden>
 
+        <div class="signup-message signup-message--info" style="margin:0 0 1.4rem">
+          <p style="margin:0"><strong>Signups are automatic now.</strong> People who sign up on the website confirm their email and are activated, with a code and a welcome email, without anyone here doing anything. Manage them under <a href="#af-heading">Approved affiliates</a> below. The two sections after this note are for <em>legacy or exceptional</em> cases only.</p>
+        </div>
+        <p id="ap-config-warning" class="form-status" role="status" style="margin:0 0 1.2rem;color:#8a5a00" hidden></p>
+
         <div class="admin-meta">
-          <h2 style="font-size:1.3rem;margin:0">Pending applications (<span id="ap-count">0</span>)</h2>
+          <h2 style="font-size:1.3rem;margin:0">Pending applications &mdash; legacy (<span id="ap-count">0</span>)</h2>
           <button type="button" class="btn btn--outline" id="ap-refresh">Refresh</button>
         </div>
+        <p class="form-note" style="margin-top:0">Applications received before automatic signup existed, waiting for a manual decision.</p>
 
         <p id="ap-none" class="form-note" hidden>No pending applications.</p>
         <div id="ap-list" class="app-list"></div>
 
         <div class="form-card" id="approve-card" style="margin-top:2rem">
-          <h2 style="font-size:1.3rem">Assign a referral code</h2>
+          <h2 style="font-size:1.3rem">Assign a referral code manually (exceptional cases)</h2>
+          <p class="form-note" style="margin-top:0">For an affiliate you are adding by hand. Ordinary signups don&rsquo;t need this.</p>
           <p class="form-note" style="margin-top:0">
             Only codes approved here earn commission. A referral link using a code that hasn&rsquo;t
             been approved is quietly ignored &mdash; so assign the code <em>before</em> the affiliate
@@ -104,15 +111,30 @@
 
         <!-- Already-approved affiliates: resend a welcome email -->
         <div class="admin-meta" style="margin-top:2.6rem">
-          <h2 style="font-size:1.3rem;margin:0">Approved affiliates (<span id="af-count">0</span>)</h2>
+          <h2 style="font-size:1.3rem;margin:0" id="af-heading">Approved affiliates (<span id="af-count">0</span>)</h2>
         </div>
         <p class="form-note" style="margin-top:0">
-          Resends the same welcome email to the address on file. Nothing about the affiliate or
-          their code changes.
+          <strong>Resend Welcome Email</strong> sends the same welcome email to the address on file.
+          <strong>Suspend</strong> stops a code earning commission straight away (its sales and balance stay in the
+          referral report, flagged); <strong>Reactivate</strong> turns it back on. Nothing is deleted.
         </p>
         <p id="af-status" class="form-status" role="status" aria-live="polite"></p>
         <p id="af-none" class="form-note" hidden>No approved affiliates yet.</p>
         <div id="af-list" class="aff-list"></div>
+
+        <!-- Duplicate protection: one-time index rebuild -->
+        <div class="form-card" id="idx-card" style="margin-top:2.2rem">
+          <h2 style="font-size:1.3rem">Duplicate protection</h2>
+          <p class="form-note" style="margin-top:0">
+            New signups are checked against an index of registered emails and phone numbers. Run
+            <strong>Rebuild duplicate index</strong> <em>once after deploying</em> so that affiliates who registered
+            <em>before</em> automatic signup are protected too. It only adds index entries (it never changes an
+            affiliate), is safe to run again, and lists any two existing affiliates who share an email or phone number.
+          </p>
+          <div style="margin-top:.8rem"><button type="button" class="btn btn--outline" id="idx-rebuild">Rebuild duplicate index</button></div>
+          <p id="idx-status" class="form-status" role="status" aria-live="polite"></p>
+          <div id="idx-result" class="admin-detail" hidden></div>
+        </div>
       </div>
 
       <!-- Success -->
@@ -147,6 +169,7 @@
     </div>
   </section>
 
-  <script src="js/admin-approve-affiliate.js?v=15"></script>
+  <script src="js/password-toggle.js?v=16"></script>
+  <script src="js/admin-approve-affiliate.js?v=16"></script>
 </body>
 </html>

@@ -12,7 +12,8 @@
  *   email       string  affiliate's email     (not needed when check_only)
  *   check_only  bool    optional — report availability without writing
  *
- * Stores: key "affiliate:{CODE}", value {name, email, approved_at, application_key?}.
+ * Stores: key "affiliate:{CODE}", value {name, email, approved_at, status: "active",
+ * source: "admin", application_key?}.
  * application_key (only when supplied, and only if it starts with "application:")
  * links the affiliate to the application that holds their payout details.
  *
@@ -27,6 +28,10 @@
  * not a practical concern, but it is why this is a check rather than a
  * guarantee.
  */
+
+import { getJson } from "../_lib/payouts.js";
+import { normaliseEmail, normalisePhoneIntl } from "../_lib/identity.js";
+import { affiliateMetadata, idxEmailKey, idxPhoneKey, liveOwner } from "../_lib/signup.js";
 
 const CODE_PATTERN = /^[A-Za-z0-9]{3,32}$/; // alphanumeric, no spaces
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -137,14 +142,12 @@ export async function onRequestPost(context) {
   const validApplicationKey =
     applicationKey.startsWith("application:") && applicationKey.length <= 200 ? applicationKey : "";
 
-  const record = { name, email, approved_at: new Date().toISOString() };
+  const record = { name, email, approved_at: new Date().toISOString(), status: "active", source: "admin" };
   if (validApplicationKey) record.application_key = validApplicationKey;
 
   try {
     await env.REFERRALS_KV.put(`affiliate:${code}`, JSON.stringify(record), {
-      metadata: validApplicationKey
-        ? { n: name, e: email, at: record.approved_at, k: validApplicationKey }
-        : { n: name, e: email, at: record.approved_at }
+      metadata: affiliateMetadata(record)
     });
   } catch (err) {
     return json({ ok: false, error: "Could not save the affiliate record." }, 500);
@@ -159,11 +162,13 @@ export async function onRequestPost(context) {
      stale row in the pending list, which is better than reporting the
      whole approval as failed and inviting a duplicate attempt. */
   let applicationUpdated = false;
+  let applicationPhone = "";
   if (validApplicationKey) {
     try {
       const raw = await env.REFERRALS_KV.get(validApplicationKey);
       if (raw) {
         const application = JSON.parse(raw);
+        applicationPhone = typeof application.phone === "string" ? application.phone : "";
         application.status = "approved";
         application.approved_code = code;
         application.approved_at = record.approved_at;
@@ -177,12 +182,35 @@ export async function onRequestPost(context) {
     }
   }
 
+  /* Duplicate-detection index (see _lib/signup.js). A manual approval is the admin's call, so it
+     is never blocked by a duplicate; but the index is only written where it is free, and a
+     clash is reported so the admin knows two affiliates share an email or phone. */
+  const warnings = [];
+  try {
+    const owner = JSON.stringify({ type: "affiliate", code, at: record.approved_at });
+    const targets = [];
+    const emailNorm = normaliseEmail(email);
+    if (emailNorm) targets.push(["email", idxEmailKey(emailNorm)]);
+    const phone = normalisePhoneIntl(applicationPhone);
+    if (phone.ok) targets.push(["phone", idxPhoneKey(phone.phone)]);
+    for (const [field, key] of targets) {
+      const existing = await getJson(env.REFERRALS_KV, key);
+      const live = await liveOwner(env.REFERRALS_KV, existing);
+      if (!live) {
+        await env.REFERRALS_KV.put(key, owner);
+      } else if (!(live.kind === "confirmed" && live.code === code)) {
+        warnings.push(`This ${field} is already registered to ${live.kind === "confirmed" ? "affiliate " + live.code : "a signup waiting for confirmation"}.`);
+      }
+    }
+  } catch (err) { /* the index is a safeguard; the approval itself has succeeded */ }
+
   return json({
     ok: true,
     code,
     name,
     email,
     approved_at: record.approved_at,
-    application_updated: applicationUpdated
+    application_updated: applicationUpdated,
+    warnings
   });
 }

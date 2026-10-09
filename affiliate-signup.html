@@ -28,7 +28,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=15" />
+  <link rel="stylesheet" href="css/styles.css?v=16" />
 </head>
 <body>
 
@@ -77,11 +77,11 @@
       <div>
         <p class="eyebrow">How It Works</p>
         <h2>Join our affiliate programme</h2>
-        <p class="lead">Join our affiliate program and earn <strong>8% commission</strong> on every completed sale through your referral link. Fill out the form and we&rsquo;ll be in touch with your personal referral code.</p>
+        <p class="lead">Join our affiliate program and earn <strong>8% commission</strong> on every completed sale through your referral link. Sign up in a minute &mdash; there is no waiting for approval.</p>
         <ol class="stack" style="padding-left:1.1rem">
-          <li><strong>Apply.</strong> Send us your details using the form.</li>
-          <li><strong>We review your application.</strong> Our team reviews every application personally and replies by email.</li>
-          <li><strong>Get your code and link.</strong> If approved, we&rsquo;ll email you your own referral code and a ready-to-share link.</li>
+          <li><strong>Sign up.</strong> Fill in the form with your details and where to send your commission.</li>
+          <li><strong>Confirm your email.</strong> We email you a link. Tap it once.</li>
+          <li><strong>Get your code and link instantly.</strong> Your referral code and personal link appear straight away, and we email them to you too.</li>
           <li><strong>Share and earn.</strong> Every completed sale through your link earns you 8% of the order value.</li>
         </ol>
         <div class="placeholder-note">
@@ -90,70 +90,107 @@
         <p><strong>Already an affiliate?</strong> Use the <strong>Share</strong> button on any product to send your own tracked link &mdash; see our <a href="products.html">products</a>.</p>
       </div>
 
-      <!-- Application form -->
-      <div class="form-card">
-        <h2 style="font-size:1.4rem">Affiliate Application</h2>
+      <!-- Signup form -->
+      <div>
+      <div class="form-card" id="signup-card">
+        <h2 style="font-size:1.4rem">Affiliate Signup</h2>
         <p class="lead" style="font-size:1rem">Tell us a little about you and where to send your commission.</p>
-        <!--
-          FORM WIRING: opens a mailto: (same pattern as the contact and
-          wholesale forms) AND records the application to KV via
-          data-xny-post, so it shows up in the admin approval queue. On submit, js/main.js builds a
-          mailto: link from the field values below and opens the
-          visitor's email client with the application pre-filled.
 
-          NOTE: this form does NOT assign referral codes. Applications
-          are reviewed manually and the code is emailed back to the
-          applicant by hand — there is deliberately no auto-approval or
-          code-generation logic anywhere in this project.
-        -->
-        <form data-xny-form
-              data-mailto="xnyfarms@gmail.com"
-              data-subject="Affiliate Signup Application — XNY Farms"
-              data-xny-post="/api/submit-affiliate-application">
+        <form id="signup-form" novalidate>
           <div class="form-grid">
             <div class="field field--full">
               <label for="a-name">Full name <span class="req">*</span></label>
-              <input id="a-name" name="name" data-label="Full Name" type="text" required autocomplete="name" />
+              <input id="a-name" name="name" type="text" required maxlength="100" autocomplete="name" aria-describedby="err-name" />
+              <p class="field-error" id="err-name" role="alert"></p>
             </div>
             <div class="field">
               <label for="a-email">Email <span class="req">*</span></label>
-              <input id="a-email" name="email" data-label="Email" type="email" required autocomplete="email" />
+              <input id="a-email" name="email" type="email" required maxlength="254" autocomplete="email" aria-describedby="err-email" />
+              <p class="field-error" id="err-email" role="alert"></p>
             </div>
             <div class="field">
               <label for="a-phone">Phone number <span class="req">*</span></label>
-              <input id="a-phone" name="phone" data-label="Phone" type="tel" required autocomplete="tel" />
+              <input id="a-phone" name="phone" type="tel" required maxlength="32" autocomplete="tel" placeholder="0803 123 4567" aria-describedby="err-phone" />
+              <p class="field-error" id="err-phone" role="alert"></p>
             </div>
 
             <div class="field field--full">
               <h3 style="font-size:1rem;margin:.6rem 0 0">Payout details</h3>
-              <p class="form-note" style="margin:.2rem 0 0">Where we&rsquo;ll send your commission. We only use these details to pay you.</p>
+              <p class="form-note" style="margin:.2rem 0 0">Where we&rsquo;ll send your commission. We only use these details to pay you. We never ask for your card details, PIN or online banking password.</p>
             </div>
             <div class="field">
               <label for="a-bank">Bank name <span class="req">*</span></label>
-              <input id="a-bank" name="bank_name" data-label="Bank Name" type="text" required autocomplete="off" />
+              <input id="a-bank" name="bank_name" type="text" required maxlength="80" autocomplete="off" aria-describedby="err-bank_name" />
+              <p class="field-error" id="err-bank_name" role="alert"></p>
             </div>
             <div class="field">
               <label for="a-account-number">Bank account number <span class="req">*</span></label>
-              <input id="a-account-number" name="account_number" data-label="Account Number" type="text" inputmode="numeric" required autocomplete="off" />
+              <input id="a-account-number" name="account_number" type="text" inputmode="numeric" required maxlength="40" autocomplete="off" aria-describedby="err-account_number" />
+              <p class="field-error" id="err-account_number" role="alert"></p>
             </div>
             <div class="field field--full">
               <label for="a-account-name">Account holder name <span class="req">*</span></label>
-              <input id="a-account-name" name="account_holder" data-label="Account Holder Name" type="text" required autocomplete="off" />
+              <input id="a-account-name" name="account_holder" type="text" required maxlength="100" autocomplete="off" aria-describedby="err-account_holder" />
+              <p class="field-error" id="err-account_holder" role="alert"></p>
             </div>
 
             <div class="field field--full">
               <label for="a-promotion">How do you plan to promote XNY Farms products? <span style="color:var(--muted);font-weight:400">(optional)</span></label>
-              <textarea id="a-promotion" name="promotion_plan" data-label="Promotion Plan" placeholder="e.g. WhatsApp groups, Instagram, a shop or stall, word of mouth in my area…"></textarea>
+              <textarea id="a-promotion" name="promotion_plan" maxlength="1000" placeholder="e.g. WhatsApp groups, Instagram, a shop or stall, word of mouth in my area…"></textarea>
+            </div>
+
+            <!-- Honeypot: invisible to people, irresistible to bots. Leave it empty. -->
+            <div class="hp-field" aria-hidden="true">
+              <label for="a-website">Website (leave this empty)</label>
+              <input id="a-website" name="website" type="text" tabindex="-1" autocomplete="off" />
+            </div>
+
+            <div class="field field--full consent">
+              <label class="consent__label" for="a-consent">
+                <input id="a-consent" name="consent" type="checkbox" required aria-describedby="err-consent" />
+                <span>I agree that XNY Farms stores my details, including payout details, to run the affiliate programme. See the <a href="privacy-policy.html" target="_blank" rel="noopener">Privacy Policy</a> and <a href="ndpr-notice.html" target="_blank" rel="noopener">NDPR Notice</a>. <span class="req">*</span></span>
+              </label>
+              <p class="field-error" id="err-consent" role="alert"></p>
+            </div>
+
+            <!-- Cloudflare Turnstile appears here only if a site key is set above. -->
+            <div class="field field--full" id="turnstile-wrap" hidden>
+              <div id="turnstile-box"></div>
+              <p class="field-error" id="err-turnstile" role="alert"></p>
             </div>
           </div>
+
           <div style="margin-top:1.2rem">
-            <button type="submit" class="btn btn--green">Submit Application</button>
+            <button type="submit" class="btn btn--green" id="signup-submit">Sign Up</button>
           </div>
-          <p class="form-status" role="status" aria-live="polite"></p>
-          <p class="form-note">This form opens your email app with the application pre-filled. If nothing opens (common on some mobile devices), please email us directly at <a href="mailto:xnyfarms@gmail.com">xnyfarms@gmail.com</a>.</p>
-          <p class="form-note">Your application is sent as a normal email from your own email app, so please only include account details you&rsquo;re comfortable sending by email. We never ask for your card details, PIN or online banking password &mdash; only the account number we should pay your commission into.</p>
-          <p class="form-note">By submitting this form you agree to our <a href="privacy-policy.html">Privacy Policy</a> and <a href="ndpr-notice.html">NDPR Notice</a>. We&rsquo;ll only use your details to assess your application and pay commission you earn.</p>
+          <div id="signup-message" class="signup-message" role="status" aria-live="polite" hidden></div>
+          <p class="form-note">Your details are stored securely and used only to run the affiliate programme and pay your commission. Until you confirm your email they are kept for 48 hours and then deleted automatically.</p>
         </form>
+
+        <!-- Shown after a successful signup -->
+        <div id="signup-done" hidden>
+          <div class="confirmation-icon">&#9993;&#65039;</div>
+          <h2 style="font-size:1.4rem">Check your email</h2>
+          <p>We&rsquo;ve sent a confirmation link to <strong id="done-email"></strong>. Tap the button in that email to activate your account and get your referral code.</p>
+          <p class="form-note">Can&rsquo;t see it? Check your spam or promotions folder. The link works for 48 hours.</p>
+          <div style="margin-top:1rem"><button type="button" class="btn btn--outline" id="done-resend">Send the email again</button></div>
+          <p class="form-status" id="done-status" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+
+        <!-- Resend my welcome email -->
+        <div class="form-card resend-card" id="resend-welcome" style="margin-top:1.4rem">
+          <h3 style="font-size:1.1rem">Already registered? Resend my welcome email</h3>
+          <p class="form-note" style="margin-top:0">Lost your referral code or link? Enter the email you registered with and we&rsquo;ll send your details again.</p>
+          <form data-resend-welcome novalidate>
+            <div class="field">
+              <label for="rw-email">Registered email</label>
+              <input id="rw-email" name="email" type="email" required autocomplete="email" />
+            </div>
+            <div style="margin-top:.9rem"><button type="submit" class="btn btn--outline">Resend my welcome email</button></div>
+            <p class="form-status" role="status" aria-live="polite"></p>
+          </form>
+        </div>
       </div>
     </div>
   </section>
@@ -209,8 +246,18 @@
     </div>
   </footer>
 
-  <script src="js/referral.js?v=15"></script>
-  <script src="js/cart.js?v=15"></script>
-  <script src="js/main.js?v=15"></script>
+  <script>
+    /* ===================== TURNSTILE SITE KEY (public) =====================
+       Paste your Cloudflare Turnstile *site key* between the quotes below.
+       (The secret key is NOT put here: it goes in the Pages environment
+       variable TURNSTILE_SECRET_KEY.) Leave this empty to run without
+       Turnstile: signups are then protected by the honeypot and the rate limits only. */
+    window.XNY_TURNSTILE_SITE_KEY = "";
+  </script>
+  <script src="js/referral.js?v=16"></script>
+  <script src="js/cart.js?v=16"></script>
+  <script src="js/main.js?v=16"></script>
+  <script src="js/resend-welcome.js?v=16"></script>
+  <script src="js/affiliate-signup.js?v=16"></script>
 </body>
 </html>

@@ -15,9 +15,11 @@
   }
 
   function show(which) {
-    ["loading", "nocode", "results", "error"].forEach(function (name) {
+    ["loading", "nocode", "results", "error", "paused"].forEach(function (name) {
       if (els[name]) els[name].hidden = name !== which;
     });
+    // The "lost your code?" card is for people who don't have a working stats page.
+    if (els.resend) els.resend.hidden = which !== "nocode" && which !== "error";
   }
 
   function showError(message) {
@@ -79,6 +81,10 @@
           .then(function (data) { return { status: res.status, data: data }; });
       })
       .then(function (result) {
+        if (result.status === 200 && result.data.ok && result.data.paused) {
+          show("paused");
+          return;
+        }
         if (result.status === 200 && result.data.ok) {
           render(result.data);
           return;
@@ -98,6 +104,8 @@
     els.nocode = document.getElementById("stats-nocode");
     els.results = document.getElementById("stats-results");
     els.error = document.getElementById("stats-error");
+    els.paused = document.getElementById("stats-paused");
+    els.resend = document.getElementById("stats-resend");
     els.errorMessage = document.getElementById("stats-error-message");
     els.heading = document.getElementById("stats-heading");
     els.orders = document.getElementById("stat-orders");

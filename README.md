@@ -423,7 +423,130 @@ missing piece rather than failing silently — so if the report page says
 `RESEND_API_KEY`: without it, approving still works but the welcome email
 reports that the key is missing.
 
-### Approving an affiliate (assigning their code)
+### Automatic affiliate signup (no admin step)
+Ordinary signups need nobody to do anything. In words, the flow is:
+
+1. **Sign up.** The person fills in `affiliate-signup.html` (name, email, phone,
+   bank details, optional promotion plan) and ticks the required consent box
+   (Privacy Policy and NDPR Notice). The form posts only to
+   `/api/submit-affiliate-application`; it no longer opens an email app.
+2. **Checks, in order, before anything is stored or emailed:** the hidden
+   honeypot field (a bot that fills it is answered "success" and ignored); a
+   per-IP attempt limit; field validation and strict length limits; Cloudflare
+   Turnstile (if configured); then **duplicate detection** (below); then the
+   per-IP signup limit and a per-email limit on confirmation emails.
+3. **Unconfirmed record.** The signup is stored as `application:{ts}-{id}` with
+   status `unconfirmed` and `expirationTtl` 48 hours, together with
+   `idx:email:{normalised}`, `idx:phone:{normalised}` and `verify:{token}` (a
+   random 32-byte token), all with the same 48-hour life. A "Confirm your email"
+   message (one white-on-dark-green button, plain-text alternative) is sent
+   through Resend to the address they typed. If that email can't be sent,
+   everything above is rolled back so they can simply try again.
+4. **Confirmation.** The button opens `/api/verify-affiliate?token=…`. The
+   first valid visit generates a unique code, writes `affiliate:{CODE}`
+   (`status: "active"`, `source: "self-signup"`, `email_verified_at`, linked to
+   the application), makes the application and idx keys permanent (the TTL is
+   removed), sends the standard welcome email and a short "New affiliate: name,
+   code" notice to `xnyfarms@gmail.com`, and redirects to
+   `affiliate-confirmed.html?status=ok&code=CODE`, which shows the code, the
+   personal link (with a copy button) and the stats link. **It is idempotent:**
+   mail scanners prefetch links, so opening it again creates nothing and sends
+   nothing; it just shows the same result. Unknown or expired tokens go to
+   `?status=expired` ("link expired, sign up again"), malformed ones to
+   `?status=invalid`.
+
+**Duplicate detection** (server side). Emails are normalised (trimmed,
+lower-cased, any `+tag` removed; for `gmail.com`/`googlemail.com` the dots are
+removed and `googlemail.com` is treated as `gmail.com`). Phones are normalised
+(spaces, dashes, dots, brackets and a leading `+` removed; Nigerian `0XXXXXXXXXX`
+becomes `234XXXXXXXXXX`; `234…` must be exactly 13 digits; other countries only
+with an explicit `+` and 8-15 digits). Both are looked up in the `idx:` keys. A
+match with a **confirmed** affiliate is a 409 naming the field ("This email is
+already registered", "This phone number is already registered") with a pointer
+to "Resend my welcome email". A match with an **unconfirmed** signup still inside
+its 48 hours creates no second signup: the answer says a confirmation email was
+already sent and offers to resend it (`/api/resend-confirmation`: at most one
+resend per 10 minutes per signup, 3 confirmation emails per address per day; it
+re-sends the same link to the address stored on the signup). Stale index keys
+(an expired signup, a deleted affiliate) never block anyone.
+
+> **KV race window.** KV is eventually consistent and has no compare-and-set.
+> The idx keys are written first and read back to confirm they still point at
+> this signup, which catches two requests separated by more than KV's
+> propagation delay. Two requests for the same email or phone landing at the
+> *same instant* in different data centres can each win their own copy, so both
+> could get a confirmation email. The damage is bounded (the second to confirm is
+> a duplicate that **Rebuild duplicate index** reports as a conflict), and the
+> normal case of someone double-clicking Sign Up is covered by the button being
+> disabled and by the read-back.
+
+**Referral codes.** Generated server-side from the name, uppercase A-Z only:
+the first 3 letters of the first name + the first 4 of the last (`Adebayo
+Okafor` -> `ADEOKAF`; short names are padded from the rest of the name). If the
+code is already an affiliate, was ever used for sales or payments, or is a
+reserved word (`ADMIN`, `XNY`, `XNYFARMS`, `TEST`…), a 2-digit number is appended
+and the check repeats. The digits are derived from the signup, so two requests
+confirming the same signup at once land on the same code. Codes are never reused.
+Existing codes are unchanged.
+
+**Abuse protection** (the endpoint can cause email to be sent): honeypot; 30
+attempts and 5 signups per IP per hour (`CF-Connecting-IP`; note that mobile
+networks can put many people behind one IP, so raise `RATE` in
+`submit-affiliate-application.js` if real users are blocked); 3 confirmation
+emails per address per day; strict length limits; Turnstile. Counters are KV
+fixed windows, so they are a brake, not an exact quota.
+
+**Turnstile (optional).** Create a widget in the Cloudflare dashboard
+(Turnstile -> Add widget, hostname `xnyfarms.com`). Put the **site key** in the one
+constant `window.XNY_TURNSTILE_SITE_KEY` near the bottom of `affiliate-signup.html`,
+put the **secret key** in the Pages environment variable `TURNSTILE_SECRET_KEY`,
+and redeploy. If either is missing, Turnstile is skipped and signups still work
+on the other protections; the admin page shows a visible warning when the secret
+is missing. With a secret set, a missing or invalid token is rejected, and if
+Cloudflare can't be reached the signup fails closed (503) rather than silently
+dropping the check.
+
+**Rebuild duplicate index (run once after deploying).** Affiliates registered
+before this feature have no idx keys, so they aren't protected from being
+registered again. On `admin-approve-affiliate.html`, press **Rebuild duplicate
+index**: it builds the keys for every existing affiliate (email from the
+record; phone from the linked application, else the most recent application with
+the same email) and reports how many were indexed and any two existing
+affiliates sharing an email or phone. It never changes an affiliate and is safe
+to run again. It makes about two KV writes per affiliate, and Cloudflare caps KV
+operations per request, so with several hundred affiliates run it again until it
+reports nothing newly indexed. Until then, "Resend my welcome email" still finds
+old affiliates by the email in their record.
+
+**Suspending an affiliate.** Affiliate records carry `status` `"active"` or
+`"suspended"` (no status = active, so existing affiliates keep working). On the
+Approved affiliates list, **Suspend** / **Reactivate** (with a confirmation) flips
+it. A suspended code is not credited by `log-referral.js` and `my-stats.html`
+shows a neutral "account paused, contact us" message instead of figures.
+Nothing is deleted: orders, payments and the balance stay in the referral report,
+flagged **suspended**, so commission that is owed is never hidden. The list also
+shows each affiliate's source (self-signup or added by admin) and the date their
+email was confirmed.
+
+**"Resend my welcome email"** (on `affiliate-signup.html` and `my-stats.html`):
+enter the registered email. The server **always** answers "If that email is
+registered, we have sent your details", whether or not it is registered, and
+sends the email (after responding) only to an *active* affiliate's registered
+address, never to an address from the request. Limits: 5 per IP per hour and 3 per
+email per day.
+
+**NDPR: unconfirmed signups expire.** Until the email is confirmed, the signup
+(including bank details) is kept for 48 hours and then deleted by KV
+automatically, together with its idx keys and token. Confirmed affiliates' records
+are kept; delete the application records of anyone you no longer pay.
+
+### Approving an affiliate manually (legacy and exceptional cases)
+*Ordinary signups no longer come through here (see above). This section and the
+pending-applications list are for applications received before automatic signup
+existed and for adding someone by hand.* A manual approval is never blocked by a
+duplicate, but it adds the idx keys where free and warns if the email or phone
+is already registered to someone else.
+
 Go to **`/admin-approve-affiliate.html`** (also unlinked and noindexed), sign
 in with the report password, and you'll see any **pending applications** —
 each showing the applicant's contact and bank details and their promotion
@@ -435,11 +558,9 @@ Assigning a code marks that application `approved`, so it drops off the
 pending list and can't be approved twice by accident. You can also approve
 someone who never used the form by just typing their details in directly.
 
-Applications reach that list because the public signup form saves to KV as
-well as opening its mailto: — you still get the email, and now there's a
-durable record behind it. Saving is fire-and-forget: if it fails the
-applicant still gets their email opened as normal and sees no error, so
-check the pending list against your inbox occasionally.
+(Applications used to reach that list from the signup form's mailto-plus-KV
+submission; that form is now the automatic flow above, so the list only holds
+older applications.)
 
 Codes are **letters and digits only** and are stored in
 upper case, so a link typed as `?ref=adebayo01` credits the same person as
@@ -542,7 +663,10 @@ dependencies; KV and Resend are mocked). The payout report and receipts have the
 own suites: `node tests/referral-report.test.mjs` and
 `node tests/payout-receipts.test.mjs` (receipt contents, last-4-only, recipient
 taken from KV, failure handling, phone normalisation, the receipt's button
-contrast). They check what would be sent, not how
+contrast). Automatic signup has `node tests/affiliate-signup.test.mjs` (mocked KV
+with TTLs, a fake clock, mocked Resend and Turnstile). Browser tests for the
+password toggle and the signup pages are in `tests/browser/` and need Playwright:
+`NODE_PATH=/path/to/node_modules node tests/browser/run.mjs`. They check what would be sent, not how
 Gmail renders it — for that, send a real email to a test affiliate.
 
 ### ⚠️ Only approved codes earn commission
@@ -684,13 +808,20 @@ the password, so use a strong one.
 | `functions/api/register-affiliate.js` | Pages Function. Password-checked code assignment; writes `affiliate:{CODE}` and marks the linked application approved. |
 | `functions/api/send-affiliate-email.js` | Pages Function. Password-checked; emails an approved affiliate their welcome message via Resend. |
 | `functions/api/get-affiliates.js` | Pages Function. Password-checked; lists approved affiliates for the resend list. |
-| `functions/api/submit-affiliate-application.js` | Pages Function. Public; stores a signup application as `application:{timestamp}-{id}` with status `pending`. |
+| `functions/api/submit-affiliate-application.js` | Pages Function. Public self-service signup: honeypot, rate limits, validation, Turnstile, duplicate detection, stores an UNCONFIRMED `application:{ts}-{id}` (48h TTL) + idx keys + `verify:{token}` and emails the confirmation link. |
+| `functions/api/verify-affiliate.js` | Pages Function. Public GET from the confirmation email; idempotently creates the affiliate, sends the welcome email and the admin notice, redirects to `affiliate-confirmed.html`. |
+| `functions/api/resend-confirmation.js` | Pages Function. Public; re-sends a pending signup's confirmation email (10-minute cooldown). |
+| `functions/api/resend-welcome.js` | Pages Function. Public "Resend my welcome email"; always the same answer, mails only an active affiliate's registered address. |
+| `functions/api/rebuild-index.js` | Pages Function. Password-checked; one-time duplicate-index build for existing affiliates, with a conflict report. |
+| `functions/api/set-affiliate-status.js` | Pages Function. Password-checked; suspend / reactivate an affiliate. |
 | `functions/api/get-pending-applications.js` | Pages Function. Password-checked; lists applications still pending, newest first. |
 | `functions/api/get-my-stats.js` | Pages Function. Public, returns one code's own totals only (orders, sales, earned, paid, balance due; never bank details). |
 | `admin-referrals.html` + `js/admin-referrals.js` | The referral & payout report page. |
 | `admin-approve-affiliate.html` + `js/admin-approve-affiliate.js` | Approve an affiliate, assign their code, send/resend their welcome email. |
 | `my-stats.html` + `js/my-stats.js` | Affiliate self-check page. |
-| `affiliate-signup.html` | Public application form (mailto:, reviewed by hand). |
+| `affiliate-signup.html` + `js/affiliate-signup.js`, `js/resend-welcome.js` | The public signup form (and "Resend my welcome email"). |
+| `affiliate-confirmed.html` + `js/affiliate-confirmed.js` | Where the confirmation link lands: shows the code and link, or a friendly expired/invalid message. |
+| `js/password-toggle.js` | Show/hide eye button added to every `input[type="password"]` (see below). |
 
 KV keys used: `affiliate:{CODE}` (one per approved affiliate; value
 `{name, email, approved_at, application_key?}`, metadata `{n, e, at, k?}`),
@@ -701,18 +832,31 @@ KV keys used: `affiliate:{CODE}` (one per approved affiliate; value
 {at, ok, error}` is added to the value, never the metadata, once a receipt has
 been tried) and
 `application:{timestamp}-{id}` (one per signup application, holding bank
-details and phone).
+details and phone), plus the self-signup keys: `idx:email:{normalised}` and
+`idx:phone:{normalised}` (who owns that email/phone: `{type:"signup",id}` or
+`{type:"affiliate",code}`), `verify:{token}` (confirmation tokens; 48h until used,
+then 90 days) and `rl:*` (rate-limit counters). Unconfirmed `application:`,
+`idx:` and `verify:` keys carry a 48-hour TTL.
 
 ### ⚠️ Applications hold personal data
-The signup form stores **bank details** in KV, not just in your inbox (and the
-payout report reads them from there). Two
-things follow. First, `/api/submit-affiliate-application` is public and has
-no captcha or rate limiting — anyone who finds the URL can post junk into
-the pending list; if that becomes a problem, Cloudflare Turnstile is the
-natural fix. Second, under the NDPR those account numbers are personal data
-you're responsible for: keep them only as long as you need them, and delete
-applications you've finished with. The pending list is password-gated, but
-the records themselves stay in KV until you remove them.
+Signups store **bank details** in KV (and the payout report reads them from
+there). `/api/submit-affiliate-application` is public, so it is protected by
+the honeypot, rate limits and (optionally) Turnstile; see *Automatic affiliate
+signup*. Under the NDPR those account numbers are personal data you're
+responsible for: unconfirmed signups delete themselves after 48 hours, but
+confirmed ones stay until you remove them, so keep them only as long as you need
+them and delete the applications of anyone you no longer pay.
+
+### Password fields: show/hide eye
+Every `input[type="password"]` gets an eye button inside its right edge
+(`js/password-toggle.js`): a real `<button type="button">` with `aria-label`
+"Show password" / "Hide password", `aria-pressed`, a 44px touch target and a
+visible focus ring. It toggles the input between `password` and `text`, keeps the
+caret where it was, never submits the form, and goes back to hidden when the form
+is submitted or the field is cleared. The admin pages load the script directly;
+`js/main.js` injects it on any other page the moment a password input exists
+(including one added later), so a future password field is covered
+automatically, as long as the page loads `main.js` (or the script itself).
 
 Logging happens **after** the customer's payment confirmation is already on
 screen, is never awaited, and fails silently (console only) — a logging

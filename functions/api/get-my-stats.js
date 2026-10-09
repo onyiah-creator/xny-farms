@@ -5,6 +5,8 @@
  * totals for ONE code and nothing else — no other affiliate's figures, no
  * customer details, no order-level data, and no list of which codes exist.
  *
+ * A suspended affiliate gets { ok, code, approved: true, paused: true } and nothing else.
+ *
  * Response: { ok, code, approved, orders, total_sales_ngn, commission_ngn,
  *             paid_ngn, balance_due_ngn, payments: [{ paid_on, amount_ngn, reference }] }
  *
@@ -71,10 +73,20 @@ async function handle(request, env) {
   const code = rawCode.toUpperCase();
 
   let approved = false;
+  let suspended = false;
   try {
-    approved = Boolean(await env.REFERRALS_KV.get(`affiliate:${code}`));
+    const raw = await env.REFERRALS_KV.get(`affiliate:${code}`);
+    approved = Boolean(raw);
+    if (raw) {
+      try { suspended = JSON.parse(raw).status === "suspended"; } catch (err) { suspended = false; }
+    }
   } catch (err) {
     approved = false;
+  }
+
+  // A paused account shows a neutral message and no figures; the person is asked to get in touch.
+  if (suspended) {
+    return json({ ok: true, code, approved: true, paused: true });
   }
 
   let orders = 0;

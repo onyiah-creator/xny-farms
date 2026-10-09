@@ -14,7 +14,7 @@
  *   {
  *     ok: true, commission_rate: 0.08, generated_at: "…ISO…",
  *     rows: [{
- *       code, name, email, phone, approved_at, unregistered,
+ *       code, name, email, phone, approved_at, unregistered, status,
  *       orders, total_sales_ngn,
  *       commission_ngn, commission_earned_ngn,   // same number; the first is the original field name
  *       paid_ngn, balance_due_ngn,               // balance is earned − paid, never negative
@@ -143,6 +143,7 @@ async function buildListing(kv) {
       phone: extra ? extra.phone : "",
       approved_at: aff ? aff.approved_at : null,
       unregistered: !aff,
+      status: aff ? aff.status : null,       // "active" | "suspended" (null for an unregistered code)
       orders: a.orders,
       total_sales_ngn: fromKobo(a.salesK),
       ...figures(a.earnedK, a.paidK),

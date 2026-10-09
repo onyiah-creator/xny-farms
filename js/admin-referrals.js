@@ -193,6 +193,7 @@
       toggle.appendChild(who);
       th.appendChild(toggle);
       if (row.unregistered) th.appendChild(el("span", "badge badge--warn", "unregistered"));
+      if (row.status === "suspended") th.appendChild(el("span", "badge badge--warn", "suspended"));
       if (row.overpaid) th.appendChild(el("span", "badge badge--info", "overpaid " + money(row.overpaid_ngn)));
       tr.appendChild(th);
 

@@ -7,7 +7,9 @@
  * this returns affiliates' email addresses, so it must never be public.
  *
  * Request body (JSON): { "password": "…" }
- * Response: { ok, count, affiliates: [{ code, name, email, approved_at }] }
+ * Response: { ok, count, config: { turnstile_secret_configured, resend_configured },
+ *             affiliates: [{ code, name, email, approved_at, status, source, email_verified_at }] }
+ *   status: "active" | "suspended" (no stored status = active); source: "self-signup" | "admin".
  *
  * Records are keyed "affiliate:{CODE}" (written by register-affiliate.js,
  * which mirrors name/email/time into KV metadata). The listing reads that
@@ -16,7 +18,8 @@
  * back to reading its value.
  */
 
-const KEY_PREFIX = "affiliate:";
+import { loadAffiliates } from "../_lib/payouts.js";
+import { turnstileConfigured } from "../_lib/turnstile.js";
 
 function json(data, status) {
   return new Response(JSON.stringify(data), {
@@ -70,54 +73,21 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: "Incorrect password." }, 401);
   }
 
-  const affiliates = [];
-  let cursor;
-  let listComplete = false;
-
+  let affiliates;
   try {
-    while (!listComplete) {
-      const page = await env.REFERRALS_KV.list({ prefix: KEY_PREFIX, cursor, limit: 1000 });
-
-      for (const key of page.keys) {
-        const code = key.name.slice(KEY_PREFIX.length);
-        if (!code) continue;
-
-        const meta = key.metadata;
-        let name;
-        let email;
-        let approvedAt;
-
-        if (meta && typeof meta.e === "string") {
-          name = meta.n;
-          email = meta.e;
-          approvedAt = meta.at;
-        } else {
-          const raw = await env.REFERRALS_KV.get(key.name);
-          if (!raw) continue;
-          try {
-            const value = JSON.parse(raw);
-            name = value.name;
-            email = value.email;
-            approvedAt = value.approved_at;
-          } catch (err) {
-            continue;
-          }
-        }
-
-        affiliates.push({
-          code,
-          name: typeof name === "string" ? name : "",
-          email: typeof email === "string" ? email : "",
-          approved_at: typeof approvedAt === "string" ? approvedAt : null
-        });
-      }
-
-      cursor = page.cursor;
-      listComplete = page.list_complete === true || !page.cursor;
-    }
+    affiliates = await loadAffiliates(env.REFERRALS_KV);
   } catch (err) {
     return json({ ok: false, error: "Could not list affiliates." }, 500);
   }
+  affiliates = affiliates.map((a) => ({
+    code: a.code,
+    name: a.name,
+    email: a.email,
+    approved_at: typeof a.approved_at === "string" ? a.approved_at : null,
+    status: a.status === "suspended" ? "suspended" : "active",
+    source: a.source === "self-signup" ? "self-signup" : "admin",
+    email_verified_at: a.email_verified_at || null
+  }));
 
   // Newest approval first; anything without a date sorts last.
   affiliates.sort((a, b) => (b.approved_at || "").localeCompare(a.approved_at || ""));
@@ -126,6 +96,11 @@ export async function onRequestPost(context) {
     ok: true,
     count: affiliates.length,
     generated_at: new Date().toISOString(),
+    // Shown on the admin page so a missing safeguard is a visible choice, not a silent gap.
+    config: {
+      turnstile_secret_configured: turnstileConfigured(env),
+      resend_configured: Boolean(env.RESEND_API_KEY)
+    },
     affiliates
   });
 }

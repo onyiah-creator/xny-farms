@@ -17,6 +17,8 @@
   var PENDING_ENDPOINT = "/api/get-pending-applications";
   var AFFILIATES_ENDPOINT = "/api/get-affiliates";
   var EMAIL_ENDPOINT = "/api/send-affiliate-email";
+  var STATUS_ENDPOINT = "/api/set-affiliate-status";
+  var REBUILD_ENDPOINT = "/api/rebuild-index";
   var CODE_PATTERN = /^[A-Za-z0-9]{3,32}$/;
   var COMMISSION_LABEL = "8%";
 
@@ -184,8 +186,19 @@
       var meta = document.createElement("div");
       meta.className = "aff-row__meta";
       // textContent throughout — names/emails originate from a public form.
+      var suspended = aff.status === "suspended";
+      if (suspended) {
+        var badge = document.createElement("span");
+        badge.className = "badge badge--warn";
+        badge.style.margin = "0";
+        badge.textContent = "suspended";
+        top.appendChild(badge);
+      }
+      var sourceText = aff.source === "self-signup" ? "self-signup" : "added by admin";
+      var confirmedText = aff.email_verified_at ? "email confirmed " + formatDate(aff.email_verified_at) : "";
       meta.textContent = (aff.email || "no email on file") +
-        (aff.approved_at ? "  \u00b7  approved " + formatDate(aff.approved_at) : "");
+        (aff.approved_at ? "  \u00b7  " + (aff.email_verified_at ? "activated " : "approved ") + formatDate(aff.approved_at) : "") +
+        "  \u00b7  " + sourceText + (confirmedText ? "  \u00b7  " + confirmedText : "");
 
       info.appendChild(top);
       info.appendChild(meta);
@@ -217,7 +230,33 @@
         });
       });
 
+      var toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "btn btn--outline";
+      toggle.textContent = suspended ? "Reactivate" : "Suspend";
+      toggle.setAttribute("data-action", suspended ? "reactivate" : "suspend");
+      toggle.addEventListener("click", function () {
+        var next = suspended ? "active" : "suspended";
+        var question = suspended
+          ? "Reactivate " + (aff.name || aff.code) + " (" + aff.code + ")? Their code will earn commission again."
+          : "Suspend " + (aff.name || aff.code) + " (" + aff.code + ")?\n\nTheir code stops earning commission straight away and their stats page shows 'account paused'. Their existing sales and balance are kept and stay in the referral report.";
+        if (!window.confirm(question)) return;
+        toggle.disabled = true;
+        setStatus(status, "Updating\u2026", null);
+        post(STATUS_ENDPOINT, { password: sessionPassword, code: aff.code, status: next }).then(function (r) {
+          if (r.status === 200 && r.data.ok) {
+            return loadAffiliates();
+          }
+          toggle.disabled = false;
+          setStatus(status, "Failed: " + (r.data.error || "could not update"), "error");
+        }).catch(function () {
+          toggle.disabled = false;
+          setStatus(status, "Failed: could not reach the server", "error");
+        });
+      });
+
       actions.appendChild(btn);
+      actions.appendChild(toggle);
       actions.appendChild(status);
       row.appendChild(info);
       row.appendChild(actions);
@@ -230,6 +269,7 @@
     return post(AFFILIATES_ENDPOINT, { password: sessionPassword }).then(function (r) {
       if (r.status === 200 && r.data.ok) {
         renderAffiliates(r.data.affiliates || []);
+        showConfig(r.data.config || {});
         return;
       }
       els.afNone.hidden = true;
@@ -237,6 +277,60 @@
     }).catch(function (err) {
       els.afNone.hidden = true;
       setStatus(els.afStatus, "Could not load approved affiliates. (" + err + ")", "error");
+    });
+  }
+
+  /* A missing safeguard is shown, not silent: signups still work without Turnstile. */
+  function showConfig(config) {
+    var warnings = [];
+    if (config.turnstile_secret_configured === false) {
+      warnings.push("Turnstile is not configured (no TURNSTILE_SECRET_KEY): signups are protected by the honeypot and rate limits only. See the README to switch it on.");
+    }
+    if (config.resend_configured === false) {
+      warnings.push("RESEND_API_KEY is not set: signup and welcome emails cannot be sent.");
+    }
+    els.configWarning.hidden = warnings.length === 0;
+    els.configWarning.textContent = warnings.length ? "\u26a0 " + warnings.join("  \u26a0 ") : "";
+  }
+
+  function rebuildIndex() {
+    els.idxButton.disabled = true;
+    setStatus(els.idxStatus, "Rebuilding\u2026", null);
+    els.idxResult.hidden = true;
+    els.idxResult.innerHTML = "";
+    post(REBUILD_ENDPOINT, { password: sessionPassword }).then(function (r) {
+      els.idxButton.disabled = false;
+      var d = r.data || {};
+      if (r.status !== 200 && !d.affiliates) {
+        setStatus(els.idxStatus, d.error || "Could not rebuild the index.", "error");
+        return;
+      }
+      setStatus(els.idxStatus, r.status === 200 ? "Done." : (d.error || "Stopped part-way. Run it again."), r.status === 200 ? "good" : "error");
+      var lines = [
+        d.affiliates + " affiliate" + (d.affiliates === 1 ? "" : "s") + " checked.",
+        d.indexed_email + " email" + (d.indexed_email === 1 ? "" : "s") + " and " + d.indexed_phone + " phone number" + (d.indexed_phone === 1 ? "" : "s") + " newly indexed.",
+        d.already_indexed_email + " emails and " + d.already_indexed_phone + " phone numbers were already indexed.",
+        d.no_phone + " with no phone number on file" + (d.invalid_phone ? ", " + d.invalid_phone + " with a phone number that couldn\u2019t be read" : "") + (d.no_email ? ", " + d.no_email + " with no usable email" : "") + "."
+      ];
+      lines.forEach(function (text) {
+        var p = document.createElement("p");
+        p.textContent = text;
+        els.idxResult.appendChild(p);
+      });
+      var conflicts = d.conflicts || [];
+      var head = document.createElement("p");
+      head.style.fontWeight = "700";
+      head.textContent = conflicts.length ? conflicts.length + " conflict" + (conflicts.length === 1 ? "" : "s") + " found (nothing was changed):" : "No conflicts: no two affiliates share an email or phone number.";
+      els.idxResult.appendChild(head);
+      conflicts.forEach(function (c) {
+        var p = document.createElement("p");
+        p.textContent = "Same " + c.field + " (" + c.value + "): " + c.codes.join(" and ") + (c.note ? " \u2014 " + c.note : "") + ". The older one keeps the index entry.";
+        els.idxResult.appendChild(p);
+      });
+      els.idxResult.hidden = false;
+    }).catch(function () {
+      els.idxButton.disabled = false;
+      setStatus(els.idxStatus, "Could not reach the server.", "error");
     });
   }
 
@@ -409,6 +503,9 @@
         if (selectedApplication && r.data.application_updated === false) {
           console.log("[xny] affiliate saved, but the application record wasn't updated");
         }
+        if (r.data.warnings && r.data.warnings.length) {
+          window.alert("Approved, but note:\n\n" + r.data.warnings.join("\n"));
+        }
         selectedApplication = null;
         showSuccess({ code: r.data.code, name: r.data.name, email: r.data.email });
         return;
@@ -461,6 +558,10 @@
     els.afList = document.getElementById("af-list");
     els.afNone = document.getElementById("af-none");
     els.afStatus = document.getElementById("af-status");
+    els.configWarning = document.getElementById("ap-config-warning");
+    els.idxButton = document.getElementById("idx-rebuild");
+    els.idxStatus = document.getElementById("idx-status");
+    els.idxResult = document.getElementById("idx-result");
 
     if (!els.gateForm || !els.form) return;
 
@@ -476,6 +577,9 @@
     });
 
     els.refresh.addEventListener("click", function () { loadApplications(); });
+    els.idxButton.addEventListener("click", function () {
+      if (window.confirm("Build the duplicate-detection index for all existing affiliates?\n\nIt only adds index entries and never changes an affiliate. Safe to run again.")) rebuildIndex();
+    });
     els.form.addEventListener("submit", submit);
     els.check.addEventListener("click", checkAvailability);
     els.clear.addEventListener("click", clearSelection);

@@ -380,6 +380,9 @@ body.home .site-header .brand__logo { height: clamp(48px, 7vw, 72px); }
   box-shadow: 0 0 0 3px rgba(74,124,47,.15);
 }
 .field textarea { resize: vertical; min-height: 130px; }
+/* Grid/flex children default to min-width:auto: a native input's intrinsic width could stretch a column past a narrow phone. */
+.form-grid > *, .field { min-width: 0; }
+.field input, .field select, .field textarea { min-width: 0; max-width: 100%; }
 .form-note { font-size: .85rem; color: var(--muted); margin-top: 1rem; }
 .form-status { margin-top: 1rem; font-weight: 600; }
 
@@ -921,6 +924,42 @@ html[data-focus-product] .product-group.is-focus-group .grid--2 {
   tr { break-inside: avoid; }
   body { background: #fff; }
 }
+
+/* Grid items default to min-width:auto, so one wide child (an input, a long word) can stretch a column past a narrow screen. */
+.grid > * { min-width: 0; }
+
+/* ---------- Password show/hide toggle (js/password-toggle.js) ---------- */
+.pw-field { position: relative; display: block; width: 100%; }
+.pw-field > input { width: 100%; padding-right: 3.4rem; }   /* the text never runs under the icon */
+.pw-toggle {
+  position: absolute; top: 50%; right: 2px; transform: translateY(-50%);
+  width: 44px; height: 44px; min-width: 44px;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; margin: 0; border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: var(--green-700); cursor: pointer;
+}
+.pw-toggle:hover { background: var(--green-100); }
+.pw-toggle:focus-visible { outline: 2px solid var(--green-700); outline-offset: 0; background: var(--green-100); }
+.pw-toggle[aria-pressed="true"] { color: var(--green-900); }
+.pw-toggle svg { width: 22px; height: 22px; display: block; pointer-events: none; }
+/* browsers' own reveal / clear icons would double up with ours */
+.pw-field > input::-ms-reveal, .pw-field > input::-ms-clear { display: none; }
+
+/* ---------- Affiliate signup form states ---------- */
+.field-error { margin: .15rem 0 0; font-size: .85rem; font-weight: 600; color: #b23b2e; min-height: 0; }
+.field-error:empty { display: none; }
+.field input[aria-invalid="true"] { border-color: #b23b2e; background: #fff7f5; }
+.hp-field { position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
+.consent__label { display: flex; align-items: flex-start; gap: .65rem; font-size: .92rem; font-weight: 500; line-height: 1.45; cursor: pointer; }
+.consent__label input { flex: 0 0 auto; width: 1.15rem; height: 1.15rem; margin-top: .15rem; accent-color: var(--green-700); }
+.signup-message { margin-top: 1rem; padding: .85rem 1rem; border-radius: var(--radius-sm); font-size: .95rem; border: 1px solid var(--line); background: var(--white); }
+.signup-message p { margin: 0 0 .6rem; overflow-wrap: anywhere; }
+.signup-message > :last-child { margin-bottom: 0; }
+.signup-message--error { border-color: #e7b9b2; background: #fff4f1; color: #7a2418; }
+.signup-message--info { border-color: var(--green-600); background: var(--green-100); color: var(--green-900); }
+.resend-card { padding: 1.3rem 1.3rem 1.1rem; }
+#signup-done { text-align: center; }
+#signup-done .btn { margin: 0 auto; }
 
 /* ---------- Footer ---------- */
 .site-footer { background: var(--green-900); color: #d9dcc9; padding: 3rem 0 1.5rem; }

@@ -139,14 +139,18 @@ export async function loadPayoutTotals(kv, prefix) {
   return payouts;
 }
 
-/** Approved affiliates: [{ code, name, email, approved_at, application_key }]. */
+/** Approved affiliates: [{ code, name, email, approved_at, application_key, status, source, email_verified_at }].
+ *  A record with no status (everything approved before self-signup) is "active" and "admin"-sourced. */
 export async function loadAffiliates(kv) {
   const keys = await listAll(kv, AFFILIATE_PREFIX);
   return mapBatched(keys, async (key) => {
     const code = key.name.slice(AFFILIATE_PREFIX.length).toUpperCase();
     const meta = key.metadata;
     if (meta && typeof meta.n === "string") {
-      return { code, name: meta.n, email: meta.e || "", approved_at: meta.at || null, application_key: meta.k || "" };
+      return {
+        code, name: meta.n, email: meta.e || "", approved_at: meta.at || null, application_key: meta.k || "",
+        status: meta.s || "active", source: meta.src || "admin", email_verified_at: meta.v || null
+      };
     }
     const value = (await getJson(kv, key.name)) || {};
     return {
@@ -154,7 +158,10 @@ export async function loadAffiliates(kv) {
       name: String(value.name || ""),
       email: String(value.email || ""),
       approved_at: value.approved_at || null,
-      application_key: typeof value.application_key === "string" ? value.application_key : ""
+      application_key: typeof value.application_key === "string" ? value.application_key : "",
+      status: value.status || "active",
+      source: value.source || "admin",
+      email_verified_at: value.email_verified_at || null
     };
   });
 }
@@ -198,6 +205,7 @@ export async function resolvePayoutDetails(kv, affiliates) {
       for (let i = 0; i < candidates.length && found.size < wanted.size; i += BATCH) {
         const apps = await Promise.all(candidates.slice(i, i + BATCH).map((k) => getJson(kv, k)));
         for (const app of apps) {                               // still newest-first within the batch
+          if (app && app.status === "unconfirmed") continue;   // a signup nobody has confirmed is not anyone's payout details
           const email = app && typeof app.email === "string" ? app.email.trim().toLowerCase() : "";
           if (email && wanted.has(email) && !found.has(email)) found.set(email, app);
         }

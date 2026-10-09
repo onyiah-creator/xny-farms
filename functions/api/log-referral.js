@@ -104,6 +104,15 @@ export async function onRequestPost(context) {
     return json({ ok: true, logged: false, reason: "unrecognised referral code" });
   }
 
+  /* A suspended affiliate's code stops earning. A record with no status (everything
+     approved before suspension existed) is active, so existing affiliates keep working. */
+  try {
+    const record = JSON.parse(approved);
+    if (record && record.status === "suspended") {
+      return json({ ok: true, logged: false, reason: "inactive referral code" });
+    }
+  } catch (err) { /* an unparseable record is treated as active, as before */ }
+
   const txRef = typeof body.tx_ref === "string" ? body.tx_ref.trim() : "";
   if (!TX_REF_PATTERN.test(txRef)) {
     return json({ ok: false, error: "Invalid tx_ref." }, 400);

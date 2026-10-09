@@ -178,6 +178,31 @@
     update();
   }
 
+  /* ---- Password fields: eye toggle ----
+     js/password-toggle.js does the work. Pages that have a password input
+     load it directly; for any other page that loads main.js, this injects it
+     as soon as a password input exists (now, or added later), so a future
+     password field is covered without touching the page. */
+  function initPasswordToggle() {
+    if (window.XNY_PASSWORD_TOGGLE) return;
+    function load() {
+      if (window.XNY_PASSWORD_TOGGLE || document.getElementById("xny-pw-toggle-script")) return;
+      var me = document.querySelector('script[src*="js/main.js"]');
+      var src = me ? me.getAttribute("src").replace("main.js", "password-toggle.js") : "js/password-toggle.js";
+      var s = document.createElement("script");
+      s.id = "xny-pw-toggle-script";
+      s.src = src;
+      document.head.appendChild(s);
+    }
+    if (document.querySelector('input[type="password"]')) { load(); return; }
+    if ("MutationObserver" in window) {
+      var observer = new MutationObserver(function () {
+        if (document.querySelector('input[type="password"]')) { observer.disconnect(); load(); }
+      });
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+    }
+  }
+
   /* ---- Footer year ---- */
   function initYear() {
     var el = document.querySelector("[data-year]");
@@ -189,6 +214,7 @@
     initActiveLink();
     initForms();
     initJumpDown();
+    initPasswordToggle();
     initYear();
   });
 })();
