@@ -6,6 +6,7 @@
  *   GET /__mails            every email "sent" so far, as JSON
  *   GET /__delay?ms=N       make every /api response wait N ms (to see loading states)
  *   GET /__turnstile?on=1   pretend TURNSTILE_SECRET_KEY is configured
+ *   GET /__pricing-fail?on=1  make GET /api/pricing fail (503), to test the blocked checkout
  * The client IP comes from the x-test-ip request header (so tests can stay under the
  * per-IP rate limits) and is passed to the functions as CF-Connecting-IP.
  */
@@ -32,6 +33,7 @@ export async function startHarness(port) {
   const env = { REFERRALS_KV: kv, ADMIN_REPORT_PASSWORD: "admin-pw", RESEND_API_KEY: "re_test_key" };
   const mails = [];
   let delayMs = 0;
+  let pricingFail = false;
 
   globalThis.fetch = async (url, init) => {
     if (String(url).startsWith("https://challenges.cloudflare.com/")) return new Response(JSON.stringify({ success: true }), { status: 200 });
@@ -46,6 +48,7 @@ export async function startHarness(port) {
     const url = new URL(req.url, "http://localhost");
     if (url.pathname === "/__mails") { res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify(mails)); return; }
     if (url.pathname === "/__delay") { delayMs = Number(url.searchParams.get("ms") || 0); res.writeHead(200); res.end("ok"); return; }
+    if (url.pathname === "/__pricing-fail") { pricingFail = url.searchParams.get("on") === "1"; res.writeHead(200); res.end("ok"); return; }
     if (url.pathname === "/__turnstile") { if (url.searchParams.get("on") === "1") env.TURNSTILE_SECRET_KEY = "x"; else delete env.TURNSTILE_SECRET_KEY; res.writeHead(200); res.end("ok"); return; }
 
     const m = /^\/api\/([\w-]+)$/.exec(url.pathname);
@@ -55,6 +58,7 @@ export async function startHarness(port) {
       const headers = new Headers();
       headers.set("CF-Connecting-IP", String(req.headers["x-test-ip"] || "127.0.0.1"));
       const request = new Request(`http://${req.headers.host}` + req.url, { method: req.method, headers, body: ["GET", "HEAD"].includes(req.method) ? undefined : Buffer.concat(chunks) });
+      if (m[1] === "pricing" && pricingFail) { res.writeHead(503, { "Content-Type": "application/json", "Cache-Control": "no-store" }); res.end(JSON.stringify({ ok: false, error: "Pricing is temporarily unavailable." })); return; }
       const mod = await load(m[1]);
       const handler = req.method === "GET" ? mod.onRequestGet : mod.onRequestPost;
       if (!handler) { res.writeHead(405); res.end("method not allowed"); return; }

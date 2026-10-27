@@ -76,6 +76,7 @@ import {
   normalisePhone, last4, buildReceiptMessage
 } from "../_lib/payouts.js";
 import { SITE_URL } from "../_lib/email.js";
+import { currentCommissionRate } from "../_lib/pricing.js";
 
 const DETAIL_CODE_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
@@ -116,7 +117,7 @@ async function buildListing(kv) {
 
   const agg = new Map();                                        // code -> running totals, in kobo
   const slot = (code) => {
-    if (!agg.has(code)) agg.set(code, { orders: 0, salesK: 0, earnedK: 0, paidK: 0, last: null });
+    if (!agg.has(code)) agg.set(code, { orders: 0, salesK: 0, earnedK: 0, paidK: 0, last: null, mismatches: 0 });
     return agg.get(code);
   };
   for (const o of orders) {
@@ -125,6 +126,7 @@ async function buildListing(kv) {
     a.salesK += toKobo(o.total);
     a.earnedK += toKobo(o.commission);
     if (o.timestamp && (!a.last || o.timestamp > a.last)) a.last = o.timestamp;
+    if (o.price_mismatch) a.mismatches += 1;
   }
   for (const p of payouts) slot(p.code).paidK += toKobo(p.amount);
 
@@ -133,7 +135,7 @@ async function buildListing(kv) {
 
   const rows = [];
   for (const code of codes) {
-    const a = agg.get(code) || { orders: 0, salesK: 0, earnedK: 0, paidK: 0, last: null };
+    const a = agg.get(code) || { orders: 0, salesK: 0, earnedK: 0, paidK: 0, last: null, mismatches: 0 };
     const aff = registered.get(code);
     const extra = aff ? details.get(code) : null;
     rows.push({
@@ -148,6 +150,7 @@ async function buildListing(kv) {
       total_sales_ngn: fromKobo(a.salesK),
       ...figures(a.earnedK, a.paidK),
       last_order_at: a.last,
+      price_mismatch_orders: a.mismatches,   // orders whose browser subtotal disagreed with the server's price
       payout: extra ? extra.payout : null
     });
   }
@@ -243,7 +246,12 @@ async function buildDetail(kv, code) {
       tx_ref: o.tx_ref,
       timestamp: o.timestamp,
       order_total_ngn: o.total,
-      commission_ngn: fromKobo(toKobo(o.commission))
+      commission_ngn: fromKobo(toKobo(o.commission)),
+      // what this order was actually priced and commissioned at (stored on the record, never recomputed)
+      commission_rate: o.commission_rate != null ? o.commission_rate : COMMISSION_RATE,
+      pricing_version: o.pricing_version || null,
+      price_mismatch: o.price_mismatch === true,
+      legacy: o.legacy === true
     })),
     payouts_detail: payouts
   };
@@ -299,10 +307,11 @@ export async function onRequestPost(context) {
   }
 
   try {
+    const displayRate = await currentCommissionRate(env.REFERRALS_KV);
     const { rows, totals } = await buildListing(env.REFERRALS_KV);
     return json({
       ok: true,
-      commission_rate: COMMISSION_RATE,
+      commission_rate: displayRate,     // the rate in force now, for display only; every order keeps its own
       generated_at: new Date().toISOString(),
       rows,
       totals

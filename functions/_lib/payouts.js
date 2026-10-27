@@ -12,6 +12,8 @@
  *   application:{ts}-{id}       signup application (bank details, phone)
  */
 
+/** Rate for records written before a rate was stored on them. Historical records are NEVER recomputed
+ *  from the rate in force today; only a record with no stored amount or rate falls back to this. */
 export const COMMISSION_RATE = 0.08;
 export const REFERRAL_PREFIX = "referral:";
 export const PAYOUT_PREFIX = "payout:";
@@ -85,12 +87,14 @@ export async function loadOrders(kv, prefix) {
     let total;
     let commission;
     let timestamp;
+    let flags = {};
 
     if (meta && typeof meta.t === "number") {
       code = meta.c || code;
       total = meta.t;
-      commission = typeof meta.m === "number" ? meta.m : meta.t * COMMISSION_RATE;
+      commission = typeof meta.m === "number" ? meta.m : meta.t * (typeof meta.r === "number" ? meta.r : COMMISSION_RATE);
       timestamp = meta.ts;
+      flags = { commission_rate: typeof meta.r === "number" ? meta.r : null, pricing_version: meta.v || null, price_mismatch: meta.pm === 1, legacy: meta.lg === 1 };
     } else {
       const value = await getJson(kv, key.name);
       if (!value) continue;
@@ -99,17 +103,24 @@ export async function loadOrders(kv, prefix) {
       total = Number(value.order_total_ngn);
       commission = Number(value.commission_ngn);
       timestamp = value.timestamp;
+      flags = {
+        commission_rate: Number.isFinite(Number(value.commission_rate)) ? Number(value.commission_rate) : null,
+        pricing_version: value.pricing_version || null,
+        price_mismatch: value.price_mismatch === true,
+        legacy: value.legacy === true
+      };
     }
 
     if (!code) code = "(unknown)";
     if (!Number.isFinite(total)) continue;
-    if (!Number.isFinite(commission)) commission = total * COMMISSION_RATE;
+    if (!Number.isFinite(commission)) commission = total * (flags.commission_rate != null ? flags.commission_rate : COMMISSION_RATE);
     orders.push({
       code: String(code).toUpperCase(),
       tx_ref: txRef,
       timestamp: timestamp || null,
       total,
-      commission
+      commission,
+      ...flags
     });
   }
   return orders;

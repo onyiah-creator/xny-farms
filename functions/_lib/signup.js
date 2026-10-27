@@ -30,6 +30,7 @@ import { SITE_URL, REPLY_TO, sendViaResend } from "./email.js";
 import { nowIso, nowMs, randomToken, normaliseEmail, pickCode } from "./identity.js";
 import { buildConfirmationEmail, buildAdminNotice } from "./signup-emails.js";
 import { buildWelcomeEmail } from "../api/send-affiliate-email.js";
+import { currentCommissionRate } from "./pricing.js";
 
 export const SIGNUP_TTL_SEC = 48 * 60 * 60;
 export const USED_TOKEN_TTL_SEC = 90 * 24 * 60 * 60;
@@ -125,7 +126,7 @@ export const verifyUrlFor = (token) => `${SITE_URL}/api/verify-affiliate?token=$
 
 /** Sends (or re-sends) the confirmation email to the address stored on the signup. */
 export async function sendConfirmation(env, record) {
-  const message = buildConfirmationEmail({ name: record.name, verifyUrl: verifyUrlFor(record.verify_token) });
+  const message = buildConfirmationEmail({ name: record.name, verifyUrl: verifyUrlFor(record.verify_token), commissionRate: await currentCommissionRate(env.REFERRALS_KV) });
   return sendViaResend(env, { to: record.email, subject: message.subject, html: message.html, text: message.text });
 }
 
@@ -155,7 +156,7 @@ export async function findAffiliateByEmail(kv, emailNorm) {
 /** Sends the standard welcome email to an affiliate's registered address. Never throws. */
 export async function sendWelcomeTo(env, code, record) {
   try {
-    const message = buildWelcomeEmail({ name: record.name, code });
+    const message = buildWelcomeEmail({ name: record.name, code, commissionRate: await currentCommissionRate(env.REFERRALS_KV) });
     return await sendViaResend(env, { to: String(record.email).trim(), subject: message.subject, html: message.html, text: message.text });
   } catch (err) {
     return { ok: false, error: "Could not build or send the welcome email." };

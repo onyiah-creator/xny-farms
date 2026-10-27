@@ -28,7 +28,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=16" />
+  <link rel="stylesheet" href="css/styles.css?v=17" />
 </head>
 <body>
 
@@ -81,6 +81,12 @@
 
       <!-- Cart + checkout (shown once the cart has items) -->
       <div id="cart-content">
+        <!-- Shown by js/checkout.js: prices changed since the items were added / prices could not be loaded -->
+        <p id="cart-price-notice" class="signup-message signup-message--info" role="status" hidden>Prices were updated since you added these items. Your total below uses today&rsquo;s prices.</p>
+        <div id="pricing-error" class="signup-message signup-message--error" role="alert" hidden>
+          <p>We couldn&rsquo;t load today&rsquo;s prices, so checkout is paused. Please check your connection and try again.</p>
+          <button type="button" class="btn btn--outline btn--sm" id="pricing-retry">Try again</button>
+        </div>
         <div class="cart-layout">
 
           <!-- Items -->
@@ -237,10 +243,11 @@
     </div>
   </footer>
 
-  <script src="js/referral.js?v=16"></script>
-  <script src="js/cart.js?v=16"></script>
+  <script src="js/referral.js?v=17"></script>
+  <script src="js/pricing.js?v=17"></script>
+  <script src="js/cart.js?v=17"></script>
   <script src="https://checkout.flutterwave.com/v3.js"></script>
-  <script src="js/checkout.js?v=16"></script>
-  <script src="js/main.js?v=16"></script>
+  <script src="js/checkout.js?v=17"></script>
+  <script src="js/main.js?v=17"></script>
 </body>
 </html>

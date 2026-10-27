@@ -68,7 +68,7 @@
          the console only.
 
      `order_total_ngn` is the order SUBTOTAL (excluding any delivery
-     fee) — that is the commissionable amount the 8% is calculated from.
+     fee) — that is the commissionable amount the commission is calculated from.
      The gross total is sent alongside it purely for reconciliation. */
   function logOrder(order) {
     var code = getRefCode();
@@ -86,6 +86,12 @@
       tx_ref: order.tx_ref,
       timestamp: order.timestamp || new Date().toISOString()
     };
+    // The pricing version the order was priced with, and what was bought (ids and quantities only).
+    // The server prices the items from that immutable version and credits commission against it.
+    if (typeof order.pricing_version === "number" && Array.isArray(order.items)) {
+      payload.pricing_version = order.pricing_version;
+      payload.items = order.items;
+    }
 
     try {
       return window.fetch(LOG_ENDPOINT, {

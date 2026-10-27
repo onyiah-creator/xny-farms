@@ -1,6 +1,6 @@
 /**
- * Browser tests (headless Chromium via Playwright): the password show/hide toggle and
- * the automatic affiliate signup pages.
+ * Browser tests (headless Chromium via Playwright): the password show/hide toggle, the
+ * automatic affiliate signup pages, and the pricing admin page / storefront / cart / checkout.
  *
  *   NODE_PATH=/path/to/node_modules node tests/browser/run.mjs
  *
@@ -14,6 +14,7 @@ import { createRequire } from "node:module";
 import { startHarness } from "./harness.mjs";
 import passwordToggle from "./password-toggle.mjs";
 import signupFlow from "./signup-flow.mjs";
+import pricingFlow from "./pricing-flow.mjs";
 
 const require = createRequire(import.meta.url);
 function loadPlaywright() {
@@ -35,6 +36,8 @@ try {
   await passwordToggle(ctx);
   console.log("\n=== affiliate signup pages ===");
   await signupFlow(ctx);
+  console.log("\n=== pricing: admin page, storefront, cart, checkout ===");
+  await pricingFlow(ctx);
 } finally {
   await browser.close();
   await harness.close();

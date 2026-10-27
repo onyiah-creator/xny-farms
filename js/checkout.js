@@ -20,12 +20,11 @@
 (function () {
   "use strict";
 
-  // ---- Delivery rates (NGN) ----------------------------------------
-  // PROVISIONAL flat rates — placeholders until a courier partner and
-  // real zone pricing are confirmed. Update these two constants when
-  // that happens; nothing else in this file needs to change.
-  var DELIVERY_RATE_LAGOS = 1500; // NGN — placeholder, update once a courier partner is confirmed
-  var DELIVERY_RATE_OTHER = 3500; // NGN — placeholder, update once a courier partner is confirmed
+  // ---- Prices and delivery charges --------------------------------------
+  // They are NOT constants any more: they come from /api/pricing (js/pricing.js), set by the admin
+  // on admin-pricing.html. The last-known defaults in js/pricing.js are for DISPLAY only; this file
+  // refuses to open the payment window unless the prices came from the server (see requireLivePrices).
+  var pricing = window.XNYPricing;
 
   // ---- Pickup ------------------------------------------------------
   // Customers can collect from the distribution point instead of paying
@@ -71,7 +70,7 @@
   var FULFILMENT_STORAGE_KEY = "xny_delivery_state";
 
   var cart = window.XNYCart;
-  if (!cart) return;
+  if (!cart || !pricing) return;
 
   var els = {};
   var paymentSettled = false;
@@ -100,6 +99,9 @@
     els.confirmation = document.getElementById("order-confirmation");
     els.confirmationRef = document.getElementById("confirmation-ref");
     els.resendEmailBtn = document.getElementById("resend-email-btn");
+    els.pricingError = document.getElementById("pricing-error");
+    els.pricingRetry = document.getElementById("pricing-retry");
+    els.priceNotice = document.getElementById("cart-price-notice");
   }
 
   function money(n) {
@@ -122,8 +124,8 @@
 
   function getDeliveryFee() {
     var choice = getFulfilment();
-    if (choice === "lagos") return DELIVERY_RATE_LAGOS;
-    if (choice === "other") return DELIVERY_RATE_OTHER;
+    if (choice === "lagos") return pricing.getDelivery("lagos");
+    if (choice === "other") return pricing.getDelivery("other");
     return 0; // pickup, or nothing chosen yet
   }
 
@@ -206,8 +208,8 @@
   // the rate constants above, so the labels can never drift out of sync
   // with what's actually charged.
   function renderRates() {
-    els.rateLagos.forEach(function (el) { el.textContent = money(DELIVERY_RATE_LAGOS); });
-    els.rateOther.forEach(function (el) { el.textContent = money(DELIVERY_RATE_OTHER); });
+    els.rateLagos.forEach(function (el) { el.textContent = money(pricing.getDelivery("lagos")); });
+    els.rateOther.forEach(function (el) { el.textContent = money(pricing.getDelivery("other")); });
   }
 
   function renderTotals() {
@@ -226,6 +228,81 @@
 
     els.total.textContent = money(total);
     if (els.payAmount) els.payAmount.textContent = money(total);
+    renderedSignature = priceSignature();
+  }
+
+  /* What the shopper is looking at: the pricing version, the subtotal and the delivery charge. Compared
+     again right before payment so the amount charged is always the amount shown. */
+  var renderedSignature = "";
+  function priceSignature() {
+    return [pricing.getVersion(), cart.getSubtotal(), getDeliveryFee()].join("|");
+  }
+
+  /* ---- live prices: loading, notices, and blocking payment when they can't be loaded ---- */
+  function setPaymentBlocked(blocked) {
+    [els.proceedBtn, els.payBtn].forEach(function (btn) { if (btn) btn.disabled = blocked; });
+  }
+
+  function showPricingError(show) {
+    if (els.pricingError) els.pricingError.hidden = !show;
+    setPaymentBlocked(show);
+  }
+
+  function showPriceNotice(show) {
+    if (els.priceNotice) els.priceNotice.hidden = !show;
+  }
+
+  function redraw() {
+    renderItems();
+    renderRates();
+    renderTotals();
+  }
+
+  /* Called whenever a price fetch finishes. Success: redraw with the real prices, tell the shopper if
+     they changed since they added things, unblock payment. Failure: keep drawing the defaults but block
+     payment and offer a retry. */
+  function onPricing() {
+    if (pricing.isLive()) {
+      var changed = cart.checkRepricing();
+      redraw();
+      showPriceNotice(changed);
+      showPricingError(false);
+    } else {
+      showPricingError(true);
+    }
+  }
+
+  function retryPricing() {
+    if (els.pricingRetry) els.pricingRetry.disabled = true;
+    return pricing.load(true).then(function () {
+      if (els.pricingRetry) els.pricingRetry.disabled = false;
+      onPricing();
+    });
+  }
+
+  /* Right before a payment: fetch the prices fresh (no cache). Resolves true only if they came from the
+     server AND nothing the shopper is looking at has changed. Otherwise it explains and resolves false,
+     so a stale or default price can never be charged. */
+  function requireLivePrices() {
+    return pricing.load(true).then(function () {
+      if (!pricing.isLive()) {
+        showPricingError(true);
+        els.checkoutStatus.textContent = "We couldn't load today's prices, so payment is paused. Please check your connection and try again.";
+        els.checkoutStatus.style.color = "#b23b2e";
+        return false;
+      }
+      var before = renderedSignature;
+      cart.checkRepricing();
+      redraw();
+      showPricingError(false);
+      if (before !== renderedSignature) {
+        showPriceNotice(true);
+        els.checkoutStatus.textContent = "Prices were updated. Please check your new total, then press Pay Now again.";
+        els.checkoutStatus.style.color = "#b23b2e";
+        return false;
+      }
+      return true;
+    });
   }
 
   // Pickup needs no shipping address, so the address field is hidden and
@@ -283,6 +360,8 @@
       txRef: txRef,
       status: status,
       items: cart.readCart(),
+      lines: cart.getOrderLines(),            // ids + quantities only: the server prices them from the version below
+      pricingVersion: pricing.getVersion(),
       subtotal: subtotal,
       deliveryFee: deliveryFee,
       total: subtotal + deliveryFee,
@@ -357,6 +436,8 @@
     if (window.XNYReferral) {
       window.XNYReferral.logOrder({
         order_total_ngn: order.subtotal,
+        pricing_version: order.pricingVersion,
+        items: order.lines,
         gross_total_ngn: order.total,
         tx_ref: order.txRef,
         timestamp: new Date().toISOString()
@@ -383,6 +464,19 @@
         window.alert("Please choose pickup or a delivery option before paying.");
         return;
       }
+
+      els.payBtn.disabled = true;
+      els.checkoutStatus.textContent = "Checking today's prices…";
+      els.checkoutStatus.style.color = "var(--muted)";
+      requireLivePrices().then(function (ok) {
+        els.payBtn.disabled = pricing.isLive() ? false : true;
+        if (ok) startPayment();
+      });
+    });
+  }
+
+  function startPayment() {
+    {
       if (typeof FlutterwaveCheckout !== "function") {
         els.checkoutStatus.textContent =
           "Payment system failed to load. Please refresh and try again, or contact us directly to place your order.";
@@ -444,7 +538,7 @@
           }
         }
       });
-    });
+    }
   }
 
   document.addEventListener("DOMContentLoaded", function () {
@@ -456,5 +550,11 @@
     applyFulfilmentUi();
     initProceed();
     initPayNow();
+    if (els.pricingRetry) els.pricingRetry.addEventListener("click", retryPricing);
+
+    // Until today's prices arrive, payment is held: the page is drawn from last-known defaults.
+    showPricingError(false);
+    setPaymentBlocked(true);
+    pricing.load(false).then(onPricing);
   });
 })();

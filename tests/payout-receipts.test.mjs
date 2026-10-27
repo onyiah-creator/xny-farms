@@ -274,7 +274,7 @@ check('get-my-stats never reads an application: record (where bank and phone liv
   for (let i = 0; i < 80; i++) { const k = `payout:MANY0001:2026-01-01T00:00:${String(i).padStart(2, '0')}.000Z-aaaaaaaa${String(i).padStart(2, '0')}`; await many.put(k, JSON.stringify({ code: 'MANY0001', amount_ngn: 1, paid_on: '2026-01-' + String(i % 28 + 1).padStart(2, '0'), reference: 'r' + i }), { metadata: { c: 'MANY0001', a: 1, ts: '2026-01-' + String(i % 28 + 1).padStart(2, '0') } }); }
   let gets = 0; const counting = { ...many, get: async k => { gets++; return many.get(k); } };
   const rr = await myStats({ request: new Request('https://x/api/get-my-stats?code=MANY0001'), env: { REFERRALS_KV: counting } }); const jj = await rr.json();
-  check(`public endpoint reads at most 50 payout values for references (read ${gets} for 80 payments)`, jj.paid_ngn === 80 && jj.payments.length === 80 && gets <= 50 + 1, gets);
+  check(`public endpoint reads at most 50 payout values for references (read ${gets} for 80 payments)`, jj.paid_ngn === 80 && jj.payments.length === 80 && gets <= 50 + 3, gets);   // +the affiliate record and the pricing pointer/snapshot
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

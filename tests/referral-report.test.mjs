@@ -172,7 +172,7 @@ check('totals: balance is the sum of row balances (an overpayment does NOT cance
 console.log('\n=== report: detail request ===');
 r = await call(report, { password: PW, code: 'ada01' });
 check('detail: ok, orders newest first, prefix-scoped (no ADA010 order)', r.j.ok && r.j.orders_detail.length === 2 && r.j.orders_detail[0].tx_ref === 'tx2' && !r.j.orders_detail.some(o => o.tx_ref === 'txX'), JSON.stringify(r.j.orders_detail));
-check('detail: order fields', JSON.stringify(Object.keys(r.j.orders_detail[0])) === JSON.stringify(['tx_ref', 'timestamp', 'order_total_ngn', 'commission_ngn']) && r.j.orders_detail[0].commission_ngn === 400.01);
+check('detail: order fields', JSON.stringify(Object.keys(r.j.orders_detail[0])) === JSON.stringify(['tx_ref', 'timestamp', 'order_total_ngn', 'commission_ngn', 'commission_rate', 'pricing_version', 'price_mismatch', 'legacy']) && r.j.orders_detail[0].commission_ngn === 400.01);
 check('detail: payouts newest first with reference and note', r.j.payouts_detail.length === 3 && r.j.payouts_detail[0].paid_on === '2026-05-21' && r.j.payouts_detail[2].reference === 'FLW-123' && r.j.payouts_detail[2].note === 'first part' && /^payout:ADA01:/.test(r.j.payouts_detail[0].key), JSON.stringify(r.j.payouts_detail));
 check('detail: summary agrees with the listing', r.j.summary.commission_earned_ngn === 1200.01 && r.j.summary.paid_ngn === 1250.01 && r.j.summary.overpaid === true && r.j.summary.balance_due_ngn === 0);
 check('detail: no bank details in it', !JSON.stringify(r.j).includes('2000000001'));

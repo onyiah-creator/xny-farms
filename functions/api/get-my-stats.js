@@ -31,7 +31,9 @@
  * non-obvious if you consider earnings sensitive.
  */
 
-const COMMISSION_RATE = 0.08;
+import { currentCommissionRate } from "../_lib/pricing.js";
+
+const COMMISSION_RATE = 0.08;   // only for a legacy record that stored neither an amount nor a rate
 const CODE_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const MAX_PAYMENTS_DETAILED = 50;
 
@@ -71,6 +73,7 @@ async function handle(request, env) {
     return json({ ok: false, error: "That doesn't look like a valid referral code." }, 400);
   }
   const code = rawCode.toUpperCase();
+  const displayRate = await currentCommissionRate(env.REFERRALS_KV);
 
   let approved = false;
   let suspended = false;
@@ -112,7 +115,7 @@ async function handle(request, env) {
 
         if (meta && typeof meta.t === "number") {
           total = meta.t;
-          earned = typeof meta.m === "number" ? meta.m : meta.t * COMMISSION_RATE;
+          earned = typeof meta.m === "number" ? meta.m : meta.t * (typeof meta.r === "number" ? meta.r : COMMISSION_RATE);
           timestamp = meta.ts;
         } else {
           const raw = await env.REFERRALS_KV.get(key.name);
@@ -122,6 +125,8 @@ async function handle(request, env) {
             total = Number(value.order_total_ngn);
             earned = Number(value.commission_ngn);
             timestamp = value.timestamp;
+            // an older record with no stored amount: use ITS stored rate, else the legacy 8%
+            if (!Number.isFinite(earned) && Number.isFinite(Number(value.commission_rate))) earned = total * Number(value.commission_rate);
           } catch (err) {
             continue;
           }
@@ -200,7 +205,7 @@ async function handle(request, env) {
     ok: true,
     code,
     approved,
-    commission_rate: COMMISSION_RATE,
+    commission_rate: displayRate,   // the rate in force now, for display only; each order keeps the rate it was recorded at
     orders,
     total_sales_ngn: Math.round(sales * 100) / 100,
     commission_ngn: Math.round(commission * 100) / 100,

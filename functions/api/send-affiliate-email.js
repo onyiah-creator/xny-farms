@@ -36,6 +36,8 @@
  * message rather than guessing — the admin page offers a retry.
  */
 
+import math from "../../js/pricing-math.js";
+import { currentCommissionRate } from "../_lib/pricing.js";
 import { SITE_URL, X_URL, BUTTON_TEXT, esc, button, signatureRow, sendViaResend } from "../_lib/email.js";
 
 const SUBJECT = "Welcome to the XNY Farms Affiliate Program!";
@@ -68,7 +70,8 @@ function timingSafeEqual(a, b) {
  * previewed without sending anything. `siteUrl` is a parameter only so a
  * preview can point images at a local server; the live call uses SITE_URL.
  */
-export function buildWelcomeEmail({ name, code, siteUrl }) {
+export function buildWelcomeEmail({ name, code, siteUrl, commissionRate }) {
+  const rate = math.formatRate(commissionRate == null ? 0.08 : commissionRate);   // the rate in force when the email is built
   const site = (siteUrl || SITE_URL).replace(/\/$/, "");
   const safeName = esc(name || "there");
   const referralLink = `${site}/?ref=${encodeURIComponent(code)}`;
@@ -95,7 +98,7 @@ export function buildWelcomeEmail({ name, code, siteUrl }) {
 </head>
 <body style="margin:0;padding:0;background-color:#faf6ee;">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#faf6ee;">
-    Your referral code ${esc(code)} is ready &mdash; earn 8% commission on every completed sale.
+    Your referral code ${esc(code)} is ready &mdash; earn ${rate} commission on every completed sale.
   </div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#faf6ee;">
     <tr>
@@ -144,7 +147,7 @@ export function buildWelcomeEmail({ name, code, siteUrl }) {
           <tr>
             <td style="padding:18px 32px 8px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:#14231a;">
               <p style="margin:0 0 16px;">Share your link anywhere &mdash; WhatsApp, Instagram, or in person. Anyone who opens it and buys from us is credited to you automatically. You can also use the <strong>Share</strong> button on any product page while your link is active, and it will include your code for you.</p>
-              <p style="margin:0 0 16px;">You earn <strong>8% commission</strong> on every completed sale made through your link, calculated on the order subtotal (before delivery).</p>
+              <p style="margin:0 0 16px;">You earn <strong>${rate} commission</strong> on every completed sale made through your link, calculated on the order subtotal (before delivery).</p>
               <p style="margin:0;font-size:14px;color:#3d4a42;">Commission is confirmed and paid after XNY Farms verifies each order.</p>
             </td>
           </tr>
@@ -176,7 +179,7 @@ export function buildWelcomeEmail({ name, code, siteUrl }) {
     "",
     "Share your link anywhere — WhatsApp, Instagram, or in person. Anyone who opens it and buys from us is credited to you automatically. You can also use the Share button on any product page while your link is active, and it will include your code for you.",
     "",
-    "You earn 8% commission on every completed sale made through your link, calculated on the order subtotal (before delivery).",
+    `You earn ${rate} commission on every completed sale made through your link, calculated on the order subtotal (before delivery).`,
     "",
     "Commission is confirmed and paid after XNY Farms verifies each order.",
     "",
@@ -258,7 +261,7 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: `The email on file for ${code} isn't valid.` }, 422);
   }
 
-  const message = buildWelcomeEmail({ name: record.name, code });
+  const message = buildWelcomeEmail({ name: record.name, code, commissionRate: await currentCommissionRate(env.REFERRALS_KV) });
 
   const sent = await sendViaResend(env, {
     to: email,

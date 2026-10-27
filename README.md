@@ -235,9 +235,11 @@ consistent with the rest of this static site.
 - **Cart storage:** `js/cart.js` keeps cart contents (product id, name, size,
   unit price, quantity) in `localStorage` under the key `xny_cart`, and drives
   the header cart icon/badge that appears on all 9 pages plus `cart.html`.
-  The product catalog (id → name/size/price/image) lives at the top of that
-  file — keep it in sync with the prices shown on `products.html` /
-  `index.html`.
+  The product catalog there holds only each product's id, name, size and
+  image. **Prices are not in code any more:** they come from the admin-editable
+  pricing config (see *Pricing, fees and commission* below). The cart stores
+  only `{ id, qty }`, and the price is looked up when the cart is drawn and at
+  checkout.
 - **"Add to Cart" buttons** on `products.html` and the homepage featured cards
   (ASHE Honey, Palm Oil) use a `data-add-to-cart="<product-id>"` attribute;
   `js/cart.js` wires them up automatically. "Enquire to Order" was removed
@@ -245,14 +247,9 @@ consistent with the rest of this static site.
   wholesale buyers are still served separately via the dedicated
   **Wholesale Enquiry** flow (nav + `wholesale.html`), linked from a note
   under each product section on `products.html`.
-- **Delivery fee:** `cart.html` offers a Lagos / Other Nigerian States choice.
-  The flat rates are constants at the top of `js/checkout.js`:
-  ```js
-  var DELIVERY_RATE_LAGOS = 1500; // NGN — placeholder, update once a courier partner is confirmed
-  var DELIVERY_RATE_OTHER = 3500; // NGN — placeholder, update once a courier partner is confirmed
-  ```
-  These are provisional flat rates — update them (and only them) once a real
-  courier partner and zone pricing are confirmed.
+- **Delivery fee:** `cart.html` offers a Lagos / Other Nigerian States choice
+  (or free pickup). The customer charges are set on `admin-pricing.html`
+  (they used to be constants in `js/checkout.js`).
 - **Checkout:** after "Proceed to Checkout", the visitor enters name, email,
   phone and delivery address, then "Pay Now" opens Flutterwave's Inline
   Checkout modal for the calculated total (subtotal + delivery) in NGN, with
@@ -381,6 +378,74 @@ Distributors and affiliates get a referral link. When someone arrives via
 that link and completes a purchase, the order is logged against their code
 and **8% of the order subtotal** (delivery fees excluded) is recorded as
 commission owed.
+
+### Pricing, fees and commission (admin-editable)
+Product prices, delivery charges, the affiliate commission rate and the
+payment-processor fee are edited on **`/admin-pricing.html`** (linked from
+`admin.html`; password-gated, noindexed, no-store). Open it, sign in with
+`ADMIN_REPORT_PASSWORD`, change what you need, add a note, **Review changes**
+(it lists exactly what will change), then save.
+
+**How it is stored.** Every save writes a new, immutable snapshot
+`pricing:v{n}` (products with price / target net / other cost, commission rate,
+processor fee rate, delivery courier costs and customer charges, whether the fee
+on delivery is passed on, the rounding step, and your note) and then moves the
+pointer `pricing:current`. Nothing is overwritten or deleted, so the version
+list is the change log, and **Revert** saves a *new* version that copies an old
+one. Until the first save, the built-in version 1 (today's prices, 8%, fee 2.15%,
+delivery 1,500 / 3,500) is used; the first save writes it down as v1 and adds v2.
+
+**What is public.** `GET /api/pricing` returns only the version, each product's
+id / name / size / price, the delivery charges and the commission rate, cached
+for 30 seconds. The processor fee, target nets, other costs and courier costs
+exist only behind the password. **Changes reach new orders within about a
+minute** (30s browser cache plus KV propagation); checkout re-fetches the
+prices with no cache right before payment.
+
+**The calculator** (`js/pricing-math.js`, one file used by both the page and the
+server). With `r` the commission rate (on the product price only) and `f` the
+processor fee rate (on the whole amount charged):
+
+```
+price to keep net N per item   P = (N + other cost) / (1 - r - f)   rounded UP to the step (1, 10 or 50)
+worked check: N = 700, r = 8%, f = 2.15%  ->  779.08, listed at 780, you keep 700.83
+delivery charge (fee passed on) = courier cost / (1 - f), rounded up, so delivery nets to the courier cost
+```
+
+The page shows, for each product, the recommended price, a **Use recommended**
+button, and for whatever price you type the commission, the processor fee and
+what you keep, with a red plain-words warning if that is under your target
+("You keep ₦673.88 instead of ₦700, short by ₦26.12"). Saving a price below the
+recommendation asks you to confirm. The processor-fee percentage is a single
+rate you choose: Flutterwave's real fee varies by payment method and can include
+flat fees or caps, so check their pricing and pick a rate that covers your usual
+method. There is also a sample-order preview and delivery cost cards (with a
+manual override of the customer charge, showing the effect).
+
+**Commission is recorded against the price in force when the order was placed.**
+Checkout sends the pricing version it used and the cart's ids and quantities
+(never prices). `log-referral.js` loads that immutable snapshot, works out the
+commissionable subtotal itself, and records `commission = that snapshot's rate x
+subtotal`, together with `pricing_version`, `items`, `commission_rate`,
+`commission_ngn` and `order_total_ngn`. If the browser's total differs from the
+server's by more than ₦1, the server amount is credited and the record is flagged
+`price_mismatch` (shown as a badge in the admin report). An order with no usable
+version or items (an old cached copy of the site, an unknown version, or a version
+replaced more than 24 hours ago) falls back to the browser's subtotal x the rate in
+force now and is flagged `legacy`. **Records are never recomputed:** the report,
+affiliate stats and payouts all read each record's stored amount; only a very old
+record with no stored amount or rate falls back to 8%. The rate shown to people
+("earn 8%" on the signup pages, `my-stats.html` and the emails, read from KV when an
+email is sent) is the current one, for display only. (The static `<meta>` / social
+descriptions on `affiliate-signup.html` still say 8%; they can't be updated by script.)
+
+**The storefront.** `products.html` and `index.html` mark each price with
+`data-product-id` and update it from the API; the baked-in price stays as the
+no-JavaScript fallback (so keep it roughly current, it's not the source of truth).
+The cart shows a one-line "Prices were updated" notice if the price now in force
+differs from what the shopper was shown, and **checkout will not start payment if
+the prices can't be fetched** (it shows a retry message), or if they changed while
+the shopper was looking at the total (they are told and asked to press Pay again).
 
 ### Creating a referral link for a distributor
 Append `?ref=THEIRCODE` to any page URL — usually the homepage:
@@ -663,7 +728,11 @@ dependencies; KV and Resend are mocked). The payout report and receipts have the
 own suites: `node tests/referral-report.test.mjs` and
 `node tests/payout-receipts.test.mjs` (receipt contents, last-4-only, recipient
 taken from KV, failure handling, phone normalisation, the receipt's button
-contrast). Automatic signup has `node tests/affiliate-signup.test.mjs` (mocked KV
+contrast). Pricing has `node tests/pricing-math.test.mjs` (the maths, including the
+780 / 700.83 worked check), `node tests/pricing-api.test.mjs` (public privacy,
+validation, versioning, revert, history) and `node tests/log-referral-pricing.test.mjs`
+(versioned commission, mismatch, legacy fallback, immutability of history).
+Automatic signup has `node tests/affiliate-signup.test.mjs` (mocked KV
 with TTLs, a fake clock, mocked Resend and Turnstile). Browser tests for the
 password toggle and the signup pages are in `tests/browser/` and need Playwright:
 `NODE_PATH=/path/to/node_modules node tests/browser/run.mjs`. They check what would be sent, not how

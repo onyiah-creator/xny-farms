@@ -8,11 +8,13 @@
  */
 import { SITE_URL, esc, button, signatureRow } from "./email.js";
 import { firstName } from "./payouts.js";
+import math from "../../js/pricing-math.js";
 
 export const CONFIRM_SUBJECT = "Confirm your email to activate your XNY Farms affiliate account";
 
 /** Pure. `verifyUrl` is the full link; `siteUrl` only points images at a preview server. */
-export function buildConfirmationEmail({ name, verifyUrl, siteUrl, hours = 48 }) {
+export function buildConfirmationEmail({ name, verifyUrl, siteUrl, hours = 48, commissionRate }) {
+  const rate = math.formatRate(commissionRate == null ? 0.08 : commissionRate);
   const site = (siteUrl || SITE_URL).replace(/\/$/, "");
   const logo = `${site}/assets/email/logo-email.jpg`;
   const xIcon = `${site}/assets/email/x-icon-white.png`;
@@ -56,7 +58,7 @@ export function buildConfirmationEmail({ name, verifyUrl, siteUrl, hours = 48 })
           <tr>
             <td style="padding:30px 32px 8px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:#14231a;">
               <p style="margin:0 0 16px;">Hi ${esc(firstName(name))},</p>
-              <p style="margin:0 0 16px;">Thanks for signing up to the XNY Farms affiliate programme. Confirm your email address and your account is activated straight away: you get your own referral code and link to share, and you start earning <strong>8% commission</strong> on every completed sale made through it.</p>
+              <p style="margin:0 0 16px;">Thanks for signing up to the XNY Farms affiliate programme. Confirm your email address and your account is activated straight away: you get your own referral code and link to share, and you start earning <strong>${rate} commission</strong> on every completed sale made through it.</p>
             </td>
           </tr>
 
@@ -85,7 +87,7 @@ export function buildConfirmationEmail({ name, verifyUrl, siteUrl, hours = 48 })
   const text = [
     `Hi ${firstName(name)},`,
     "",
-    "Thanks for signing up to the XNY Farms affiliate programme. Confirm your email address and your account is activated straight away: you get your own referral code and link to share, and you earn 8% commission on every completed sale made through it.",
+    `Thanks for signing up to the XNY Farms affiliate programme. Confirm your email address and your account is activated straight away: you get your own referral code and link to share, and you earn ${rate} commission on every completed sale made through it.`,
     "",
     "Confirm your email:",
     verifyUrl,

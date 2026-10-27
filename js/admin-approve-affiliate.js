@@ -20,7 +20,7 @@
   var STATUS_ENDPOINT = "/api/set-affiliate-status";
   var REBUILD_ENDPOINT = "/api/rebuild-index";
   var CODE_PATTERN = /^[A-Za-z0-9]{3,32}$/;
-  var COMMISSION_LABEL = "8%";
+  var COMMISSION_LABEL = "8%";   // replaced with the rate in force (from /api/pricing) as soon as the page loads
 
   var els = {};
   var sessionPassword = "";     // held in memory only; a refresh re-asks
@@ -520,6 +520,13 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
+    // The manual welcome-email draft quotes the commission rate in force today.
+    window.fetch("/api/pricing", { headers: { Accept: "application/json" } })
+      .then(function (res) { return res.json(); })
+      .then(function (d) {
+        if (d && d.ok && typeof d.commission_rate === "number") COMMISSION_LABEL = String(Math.round(d.commission_rate * 10000) / 100) + "%";
+      })
+      .catch(function () { /* keep the label above */ });
     els.gate = document.getElementById("approve-gate");
     els.gateForm = document.getElementById("gate-form");
     els.password = document.getElementById("ap-password");

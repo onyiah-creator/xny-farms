@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pricing — XNY Farms Limited</title>
+  <!-- Internal tool: keep it out of search results entirely. The same
+       is enforced at the header level in _headers (X-Robots-Tag). -->
+  <meta name="robots" content="noindex, nofollow, noarchive" />
+  <link rel="icon" href="assets/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+  <link rel="stylesheet" href="css/styles.css?v=17" />
+</head>
+<body>
+
+  <header class="site-header no-print">
+    <div class="container">
+      <nav class="nav" aria-label="Primary">
+        <a href="index.html" class="brand" aria-label="XNY Farms Limited home">
+          <img src="assets/xny-logo.png" alt="XNY Farms — ...meeting your agricultural needs." class="brand__logo" />
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="page-hero no-print">
+    <div class="container">
+      <p class="eyebrow" style="color:var(--amber-400)">Internal &mdash; Not Public</p>
+      <h1>Pricing &amp; Fees</h1>
+      <p>Set product prices, delivery charges, the affiliate commission and the processor fee &mdash; and see exactly what you keep.</p>
+    </div>
+  </section>
+
+  <section class="section section--white">
+    <div class="container admin-wrap admin-wrap--wide">
+
+      <!-- Password gate -->
+      <div class="form-card" id="pr-gate">
+        <h2 style="font-size:1.3rem">Sign in</h2>
+        <form id="pr-gate-form">
+          <div class="field">
+            <label for="pr-password">Report password <span class="req">*</span></label>
+            <input id="pr-password" name="password" type="password" required autocomplete="current-password" />
+          </div>
+          <div style="margin-top:1.1rem">
+            <button type="submit" class="btn btn--green" id="pr-signin">Open Pricing</button>
+          </div>
+          <p id="pr-gate-status" class="form-status" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+
+      <div id="pr-main" hidden>
+        <div class="admin-meta">
+          <p class="form-note" style="margin:0" id="pr-version-line">&mdash;</p>
+          <button type="button" class="btn btn--outline" id="pr-reload">Reload</button>
+        </div>
+        <p id="pr-notice" class="form-status" role="status" aria-live="polite"></p>
+
+        <div class="signup-message signup-message--info" style="margin:0 0 1.2rem">
+          <p style="margin:0">Changes apply to <strong>new orders</strong>, within about a minute. Every save is kept as a new version (see the change log at the bottom), and an affiliate&rsquo;s commission on an order is always worked out from the prices and rate in force when that order was placed.</p>
+        </div>
+
+        <!-- Global settings -->
+        <div class="form-card pr-card">
+          <h2 class="pr-h">Rates and rounding</h2>
+          <div class="pr-fields">
+            <div class="field">
+              <label for="pr-commission">Affiliate commission rate (%)</label>
+              <input id="pr-commission" type="number" inputmode="decimal" step="0.01" min="0" max="50" />
+              <p class="form-note" style="margin:.2rem 0 0">Charged on the product price only (not delivery).</p>
+            </div>
+            <div class="field">
+              <label for="pr-fee">Payment processor fee rate (%)</label>
+              <input id="pr-fee" type="number" inputmode="decimal" step="0.01" min="0" max="50" />
+              <p class="form-note" style="margin:.2rem 0 0">Applied to the whole amount charged, including delivery. The real Flutterwave rate varies by payment method and can include flat fees or caps, so check <a href="https://flutterwave.com/ng/pricing" target="_blank" rel="noopener">Flutterwave&rsquo;s pricing</a> and use a rate that covers your usual method.</p>
+            </div>
+            <div class="field">
+              <label for="pr-step">Round recommended prices up to the nearest</label>
+              <select id="pr-step"><option value="1">&#8358;1</option><option value="10">&#8358;10</option><option value="50">&#8358;50</option></select>
+            </div>
+            <div class="field pr-check">
+              <label class="consent__label" for="pr-passfee"><input id="pr-passfee" type="checkbox" /> <span>Pass the processor fee on delivery to the customer (the delivery charge is raised so it still nets to the courier cost)</span></label>
+            </div>
+          </div>
+          <p id="pr-rate-error" class="field-error" role="alert"></p>
+        </div>
+
+        <!-- Products -->
+        <h2 class="pr-h" style="margin-top:2rem">Products</h2>
+        <p class="form-note" style="margin-top:0">Enter the net you want to keep per item. The recommended price is the lowest price that keeps it after the affiliate commission and the processor fee: <code>price = net &divide; (1 &minus; commission &minus; fee)</code>, rounded up.</p>
+        <div id="pr-products" class="pr-products"></div>
+
+        <!-- Delivery -->
+        <h2 class="pr-h" style="margin-top:2rem">Delivery</h2>
+        <div id="pr-delivery" class="pr-products"></div>
+
+        <!-- Sample order -->
+        <div class="form-card pr-card" style="margin-top:2rem">
+          <h2 class="pr-h">Sample order (preview only)</h2>
+          <p class="form-note" style="margin-top:0">Try a basket to see what a whole order leaves you. Uses the figures above, saved or not.</p>
+          <div id="pr-sample-fields" class="pr-fields"></div>
+          <dl class="pr-break" id="pr-sample-result"></dl>
+        </div>
+
+        <!-- Save -->
+        <div class="form-card pr-card" style="margin-top:2rem">
+          <h2 class="pr-h">Save changes</h2>
+          <div class="field">
+            <label for="pr-note">Note (what and why, shown in the change log)</label>
+            <input id="pr-note" type="text" maxlength="200" autocomplete="off" placeholder="e.g. Palm oil up after supplier increase" />
+          </div>
+          <div style="margin-top:1rem;display:flex;gap:.6rem;flex-wrap:wrap">
+            <button type="button" class="btn btn--green" id="pr-review">Review changes</button>
+          </div>
+          <p id="pr-save-status" class="form-status" role="status" aria-live="polite"></p>
+          <div id="pr-diff" class="pr-diff" hidden>
+            <h3 style="font-size:1.05rem;margin:0 0 .5rem">This will change:</h3>
+            <ul id="pr-diff-list"></ul>
+            <div style="margin-top:.9rem;display:flex;gap:.6rem;flex-wrap:wrap">
+              <button type="button" class="btn btn--green" id="pr-confirm">Save as a new version</button>
+              <button type="button" class="btn btn--outline" id="pr-cancel">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Change log -->
+        <h2 class="pr-h" style="margin-top:2rem">Change log</h2>
+        <p class="form-note" style="margin-top:0">Every version is kept and never edited. <strong>Revert</strong> doesn&rsquo;t delete anything: it saves a <em>new</em> version with the old values.</p>
+        <ul id="pr-log" class="pr-log"></ul>
+      </div>
+
+      <p class="form-note admin-links no-print" style="margin-top:1.5rem">
+        <a href="admin.html">&larr; Admin tools</a>
+        <a href="admin-referrals.html">Referral &amp; Payout Report &rarr;</a>
+      </p>
+    </div>
+  </section>
+
+  <script src="js/pricing-math.js?v=17"></script>
+  <script src="js/password-toggle.js?v=17"></script>
+  <script src="js/admin-pricing.js?v=17"></script>
+</body>
+</html>
