@@ -16,7 +16,7 @@ import { onRequestPost as resendWelcome } from '../functions/api/resend-welcome.
 import { onRequestPost as rebuildIndex } from '../functions/api/rebuild-index.js';
 import { onRequestPost as setStatus } from '../functions/api/set-affiliate-status.js';
 import { onRequestPost as register } from '../functions/api/register-affiliate.js';
-import { onRequestPost as logReferral } from '../functions/api/log-referral.js';
+import { paidSale } from './helpers/paid-order.mjs';
 import { onRequestPost as getAffiliates } from '../functions/api/get-affiliates.js';
 import { onRequestGet as myStats } from '../functions/api/get-my-stats.js';
 import { onRequestPost as getReferrals } from '../functions/api/get-referrals.js';
@@ -425,15 +425,17 @@ reset();
 
 console.log('\n=== suspended affiliates are not credited ===');
 {
-  const k12 = makeKV(); const e12 = { ...env, REFERRALS_KV: k12 };
+  const k12 = makeKV(); const e12 = { ...env, REFERRALS_KV: k12, FLW_SECRET_KEY: 'FLWSECK-test' };
   const put = (code, extra) => k12.put('affiliate:' + code, JSON.stringify({ name: code, email: code.toLowerCase() + '@example.com', approved_at: '2025-01-01T00:00:00.000Z', ...extra }), { metadata: { n: code, e: code.toLowerCase() + '@example.com', at: '2025-01-01T00:00:00.000Z', ...(extra.status ? { s: extra.status } : {}) } });
   await put('LEGACY1', {});                       // no status at all: active
   await put('ACTIVE2', { status: 'active' });
   await put('PAUSED3', { status: 'suspended' });
-  const sale = (code, n) => logReferral({ request: req({ ref_code: code, tx_ref: 'tx' + n, order_total_ngn: 1000 }), env: e12 }).then(async r => ({ status: r.status, j: await r.json() }));
+  // a real, verified, server-priced order placed through the affiliate's link (commission is only ever credited from one)
+  const txs = {};
+  const sale = async (code, n) => { const r = await paidSale(e12, { items: [{ id: 'palm-oil-50cl', qty: 1 }], ref_code: code }); txs[n] = r.tx_ref; return { status: 200, j: { ok: r.state === 'paid', logged: k12._s.has(`referral:${code}:${r.tx_ref}`) } }; };
   let s = await sale('LEGACY1', 1); check('an affiliate with NO status keeps earning (existing affiliates are unaffected)', s.j.logged === true);
   s = await sale('ACTIVE2', 2); check('status "active" earns', s.j.logged === true);
-  s = await sale('PAUSED3', 3); check('status "suspended" is NOT credited (and the customer sees nothing different: ok:true)', s.status === 200 && s.j.ok === true && s.j.logged === false && !k12._s.has('referral:PAUSED3:tx3'), JSON.stringify(s.j));
+  s = await sale('PAUSED3', 3); check('status "suspended" is NOT credited (and the customer\'s order still goes through as paid)', s.j.ok === true && s.j.logged === false && !k12._s.has('referral:PAUSED3:' + txs[3]), JSON.stringify(s.j));
   const stats = async code => (await myStats({ request: new Request('https://x/api/get-my-stats?code=' + code), env: e12 })).json();
   let st = await stats('PAUSED3');
   check('my-stats for a suspended code: paused, and NO figures', st.ok === true && st.paused === true && !('commission_ngn' in st) && !('orders' in st) && !('payments' in st), JSON.stringify(st));
@@ -444,7 +446,7 @@ console.log('\n=== suspended affiliates are not credited ===');
   const rec = JSON.parse(k12._s.get('affiliate:ACTIVE2').value);
   check('record keeps everything and gains suspended_at; metadata status is updated', rec.status === 'suspended' && rec.suspended_at && rec.name === 'ACTIVE2' && k12._s.get('affiliate:ACTIVE2').metadata.s === 'suspended' && k12._s.get('affiliate:ACTIVE2').metadata.n === 'ACTIVE2');
   s = await sale('ACTIVE2', 4); check('...and it stops earning at once', s.j.logged === false);
-  check('its earlier sale is still there (nothing deleted)', k12._s.has('referral:ACTIVE2:tx2'));
+  check('its earlier sale is still there (nothing deleted)', k12._s.has('referral:ACTIVE2:' + txs[2]));
   r1 = await call(setStatus, { password: PW, code: 'ACTIVE2', status: 'active' }, {}, e12);
   check('reactivate: ok', r1.j.ok && r1.j.status === 'active' && r1.j.changed === true && JSON.parse(k12._s.get('affiliate:ACTIVE2').value).reactivated_at);
   s = await sale('ACTIVE2', 5); check('...earns again', s.j.logged === true);

@@ -20,6 +20,7 @@
   var versions = [];
   var refs = { products: {}, delivery: {} };
   var pendingInput = null;    // what the open "review changes" panel would save
+  var changeCount = 0;        // unsaved edits on the page, shown in the sticky bar
 
   /* ---------- helpers ---------- */
   var money = M.formatNgn;
@@ -178,7 +179,7 @@
       card.appendChild(dl);
       card.appendChild(status);
       els.delivery.appendChild(card);
-      refs.delivery[key] = { courier: courier, charge: charge, rec: rec, dl: dl, status: status, useBtn: useBtn };
+      refs.delivery[key] = { card: card, courier: courier, charge: charge, rec: rec, dl: dl, status: status, useBtn: useBtn };
       useBtn.addEventListener("click", function () {
         var calc = calcDelivery(key);
         if (calc !== null) { charge.value = String(calc); recalc(); }
@@ -232,6 +233,11 @@
   }
 
   function recalc() {
+    recalcFigures();
+    updateActionBar();
+  }
+
+  function recalcFigures() {
     var err = ratesError();
     setText(els.rateError, err || "", "error");
     var x = rates();
@@ -338,6 +344,90 @@
     breakdownRow(els.sampleResult, "You keep", money(o.net_kept)).className = "pr-keep";
   }
 
+  /* ---------- unsaved-change tracking and the sticky bar ---------- */
+  function differs(typed, saved) { return isNaN(typed) || Math.abs(typed - saved) > 1e-9; }
+
+  function countChanges() {
+    if (!base) return { total: 0 };
+    var n = 0, first = null;
+    var rateCard = els.commission.closest(".pr-card");
+    var rateChanges = (differs(num(els.commission) / 100, base.commission_rate) ? 1 : 0) + (differs(num(els.fee) / 100, base.processor_fee_rate) ? 1 : 0) +
+      (Number(els.step.value) !== base.rounding_step_ngn ? 1 : 0) + (els.passfee.checked !== base.pass_fee_on_delivery ? 1 : 0);
+    if (rateCard) rateCard.classList.toggle("is-changed", rateChanges > 0);
+    n += rateChanges;
+    if (rateChanges && rateCard) first = rateCard;
+    Object.keys(refs.products).forEach(function (id) {
+      var ref = refs.products[id], saved = ref.saved;
+      var c = (differs(num(ref.price), saved.price_ngn) ? 1 : 0) + (differs(num(ref.target), saved.target_net_ngn) ? 1 : 0) + (differs(num(ref.other), saved.other_cost_ngn || 0) ? 1 : 0);
+      ref.card.classList.toggle("is-changed", c > 0);
+      n += c;
+      if (c && !first) first = ref.card;
+    });
+    Object.keys(refs.delivery).forEach(function (key) {
+      var ref = refs.delivery[key], saved = base.delivery[key];
+      var c = (differs(num(ref.courier), saved.courier_cost_ngn) ? 1 : 0) + (differs(num(ref.charge), saved.customer_charge_ngn) ? 1 : 0);
+      ref.card.classList.toggle("is-changed", c > 0);
+      n += c;
+      if (c && !first) first = ref.card;
+    });
+    return { total: n, first: first };
+  }
+
+  function updateActionBar() {
+    if (!els.actionbar) return;
+    var c = countChanges();
+    changeCount = c.total;
+    els.actionbar.classList.toggle("has-changes", changeCount > 0);
+    els.changesCount.textContent = changeCount === 0 ? "No unsaved changes" : changeCount + " unsaved change" + (changeCount === 1 ? "" : "s");
+    els.review.disabled = changeCount === 0;
+    els.discard.hidden = changeCount === 0;
+    els.nextChange.hidden = changeCount === 0;
+    measureBar();
+  }
+
+  /* The bar's height changes with the screen width and with which buttons are showing; the page padding,
+     scroll-padding and the floating jump buttons all follow it through --actionbar-h. */
+  function measureBar() {
+    if (els.actionbar.hidden) return;
+    document.documentElement.style.setProperty("--actionbar-h", els.actionbar.offsetHeight + "px");
+  }
+
+  function jumpToNextChange() {
+    var cards = Array.prototype.slice.call(document.querySelectorAll("#pr-main .pr-card.is-changed"));
+    if (!cards.length) return;
+    var line = window.innerHeight * 0.3;
+    var next = cards.filter(function (c) { return c.getBoundingClientRect().top > line + 4; })[0] || cards[0];
+    next.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+
+  function discardChanges() {
+    if (!changeCount || !window.confirm("Discard your " + changeCount + " unsaved change" + (changeCount === 1 ? "" : "s") + " and go back to the live values?")) return;
+    build();
+    setText(els.notice, "Changes discarded.", null);
+  }
+
+  /* ---------- review & save: a dialog over the page ---------- */
+  function openModal() {
+    els.diff.hidden = false;
+    document.body.classList.add("has-modal");
+    els.modalPanel.scrollTop = 0;
+    els.modalPanel.focus();
+  }
+
+  function closeModal() {
+    els.diff.hidden = true;
+    document.body.classList.remove("has-modal");
+    pendingInput = null;
+    els.reviewBody.hidden = true;
+    els.confirm.disabled = true;
+    setText(els.saveStatus, "", null);
+    if (els.review && !els.review.disabled) els.review.focus();
+  }
+
+  function syncConfirm() {
+    els.confirm.disabled = !pendingInput || (!els.warn.hidden && !els.warnOk.checked);
+  }
+
   /* ---------- saving ---------- */
   function readInput() {
     var x = rates();
@@ -372,13 +462,16 @@
   }
 
   function review() {
+    if (!changeCount) return;
     setText(els.saveStatus, "", null);
-    els.diff.hidden = true;
+    els.reviewBody.hidden = true;
+    els.confirm.disabled = true;
+    pendingInput = null;
     var err = ratesError();
-    if (err) { setText(els.saveStatus, err, "error"); return; }
+    if (err) { openModal(); setText(els.saveStatus, err, "error"); return; }
     var input = readInput();
-    if (!input) { setText(els.saveStatus, "Some fields are empty or not numbers. Please check them.", "error"); return; }
-    input.note = els.note.value;
+    if (!input) { openModal(); setText(els.saveStatus, "Some fields are empty or not numbers. Please check them and try again.", "error"); return; }
+    openModal();
     setText(els.saveStatus, "Checking…", null);
     post("preview", input).then(function (r) {
       if (r.status !== 200 || !r.data.ok) { setText(els.saveStatus, r.data.error || "Could not check the changes.", "error"); return; }
@@ -386,31 +479,35 @@
       pendingInput = input;
       els.diffList.innerHTML = "";
       r.data.changes.forEach(function (line) { els.diffList.appendChild(el("li", "", line)); });
-      els.diff.hidden = false;
-      els.diff.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      var below = belowRecommendation();
+      els.warnList.innerHTML = "";
+      below.forEach(function (line) { els.warnList.appendChild(el("li", "", line)); });
+      els.warn.hidden = below.length === 0;
+      els.warnOk.checked = false;
+      els.reviewBody.hidden = false;
+      syncConfirm();
+      els.confirm.focus();
     }).catch(function () { setText(els.saveStatus, "Could not reach the server.", "error"); });
   }
 
   function confirmSave() {
-    if (!pendingInput) return;
-    var below = belowRecommendation();
-    if (below.length && !window.confirm("These prices will NOT keep the net you asked for:\n\n" + below.join("\n") + "\n\nSave them anyway?")) return;
+    if (!pendingInput || els.confirm.disabled) return;
     var input = pendingInput;
+    input.note = els.note.value;
     input.expected_version = base.version;
     els.confirm.disabled = true;
     setText(els.saveStatus, "Saving…", null);
     post("save", input).then(function (r) {
-      els.confirm.disabled = false;
       if (r.status === 200 && r.data.ok) {
-        pendingInput = null;
-        els.diff.hidden = true;
         els.note.value = "";
+        closeModal();
         setText(els.notice, "Saved as version " + r.data.version + ". New orders use it within about a minute.", "good");
-        setText(els.saveStatus, "", null);
+        window.scrollTo({ top: 0, behavior: "smooth" });
         return load();
       }
+      syncConfirm();
       setText(els.saveStatus, r.data.error || "Could not save.", "error");
-    }).catch(function () { els.confirm.disabled = false; setText(els.saveStatus, "Could not reach the server. Nothing was saved.", "error"); });
+    }).catch(function () { syncConfirm(); setText(els.saveStatus, "Could not reach the server. Nothing was saved.", "error"); });
   }
 
   /* ---------- change log ---------- */
@@ -458,6 +555,10 @@
         versions = r.data.versions || [];
         els.gate.hidden = true;
         els.main.hidden = false;
+        els.actionbar.hidden = false;
+        document.body.classList.add("has-actionbar");
+        document.documentElement.classList.add("has-actionbar");
+        measureBar();   // scroll-padding: focus/scroll-into-view never lands under the bar
         build();
         renderLog();
         return;
@@ -479,6 +580,9 @@
     els.sampleFields = $("pr-sample-fields"); els.sampleResult = $("pr-sample-result");
     els.note = $("pr-note"); els.review = $("pr-review"); els.saveStatus = $("pr-save-status");
     els.diff = $("pr-diff"); els.diffList = $("pr-diff-list"); els.confirm = $("pr-confirm"); els.cancel = $("pr-cancel");
+    els.actionbar = $("pr-actionbar"); els.changesCount = $("pr-changes-count"); els.nextChange = $("pr-next-change"); els.discard = $("pr-discard");
+    els.modalPanel = $("pr-modal-panel"); els.backdrop = $("pr-modal-backdrop"); els.reviewBody = $("pr-review-body");
+    els.warn = $("pr-warn"); els.warnList = $("pr-warn-list"); els.warnOk = $("pr-warn-ok");
     els.log = $("pr-log");
     if (!els.gateForm) return;
 
@@ -490,10 +594,29 @@
       setText(els.gateStatus, "Loading…", null);
       load();
     });
-    els.reload.addEventListener("click", function () { setText(els.notice, "", null); els.diff.hidden = true; load(); });
+    els.reload.addEventListener("click", function () {
+      if (changeCount && !window.confirm("Reloading discards your " + changeCount + " unsaved change" + (changeCount === 1 ? "" : "s") + ". Continue?")) return;
+      setText(els.notice, "", null); closeModal(); load();
+    });
     [els.commission, els.fee, els.step, els.passfee].forEach(function (n) { n.addEventListener(n === els.step || n === els.passfee ? "change" : "input", recalc); });
     els.review.addEventListener("click", review);
     els.confirm.addEventListener("click", confirmSave);
-    els.cancel.addEventListener("click", function () { els.diff.hidden = true; pendingInput = null; });
+    els.cancel.addEventListener("click", closeModal);
+    els.backdrop.addEventListener("click", closeModal);
+    els.warnOk.addEventListener("change", syncConfirm);
+    els.nextChange.addEventListener("click", jumpToNextChange);
+    els.discard.addEventListener("click", discardChanges);
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !els.diff.hidden) closeModal();
+      else if (e.key === "Tab" && !els.diff.hidden) {                       // keep keyboard focus inside the dialog
+        var f = Array.prototype.slice.call(els.modalPanel.querySelectorAll("button, input, [href]")).filter(function (n) { return !n.disabled && n.offsetParent !== null; });
+        if (!f.length) return;
+        var first = f[0], last = f[f.length - 1];
+        if (e.shiftKey && (document.activeElement === first || document.activeElement === els.modalPanel)) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    });
+    window.addEventListener("resize", measureBar);
+    window.addEventListener("beforeunload", function (e) { if (changeCount) { e.preventDefault(); e.returnValue = ""; } });
   });
 })();

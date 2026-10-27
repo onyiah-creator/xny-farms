@@ -18,6 +18,7 @@
  * back to reading its value.
  */
 
+import { adminDenied } from "../_lib/admin-auth.js";
 import { loadAffiliates } from "../_lib/payouts.js";
 import { turnstileConfigured } from "../_lib/turnstile.js";
 
@@ -68,10 +69,9 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: "Body must be valid JSON." }, 400);
   }
 
-  const supplied = typeof body.password === "string" ? body.password : "";
-  if (!timingSafeEqual(supplied, env.ADMIN_REPORT_PASSWORD)) {
-    return json({ ok: false, error: "Incorrect password." }, 401);
-  }
+  // Constant-time password check, with a lockout after repeated failures from one IP.
+  const denied = await adminDenied(request, env, body);
+  if (denied) return denied;
 
   let affiliates;
   try {

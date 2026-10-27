@@ -63,7 +63,6 @@
   // erroring. Verify any change against a real checkout.
   var PAYMENT_OPTIONS = "card, banktransfer, ussd, nqr";
 
-  var ORDER_NOTIFICATION_EMAIL = "xnyfarms@gmail.com";
   // Holds the chosen fulfilment option: "pickup" | "lagos" | "other".
   // Key name kept from when the choice was delivery-only, so a shopper
   // who picked a delivery zone before pickup existed keeps their choice.
@@ -98,7 +97,8 @@
     els.checkoutStatus = document.getElementById("checkout-status");
     els.confirmation = document.getElementById("order-confirmation");
     els.confirmationRef = document.getElementById("confirmation-ref");
-    els.resendEmailBtn = document.getElementById("resend-email-btn");
+    els.confirmationNote = document.getElementById("confirmation-note");
+    els.confirmationMain = document.getElementById("confirmation-main");
     els.pricingError = document.getElementById("pricing-error");
     els.pricingRetry = document.getElementById("pricing-retry");
     els.priceNotice = document.getElementById("cart-price-notice");
@@ -346,109 +346,72 @@
     });
   }
 
-  // Snapshot everything the notification email needs WHILE the cart and
-  // form still hold the order. This must be taken before cart.clearCart()
-  // runs on success — otherwise the email is built from an emptied cart
-  // and reaches the business with no items and a zero total. The snapshot
-  // is also what the "resend" button replays, so it stays correct however
-  // long after the cart was cleared it's pressed.
-  function captureOrder(txRef, status) {
-    var form = els.checkoutForm;
-    var subtotal = cart.getSubtotal();
-    var deliveryFee = getDeliveryFee();
-    return {
-      txRef: txRef,
-      status: status,
-      items: cart.readCart(),
-      lines: cart.getOrderLines(),            // ids + quantities only: the server prices them from the version below
-      pricingVersion: pricing.getVersion(),
-      subtotal: subtotal,
-      deliveryFee: deliveryFee,
-      total: subtotal + deliveryFee,
-      pickup: isPickup(),
-      fulfilmentLabel: getFulfilmentLabel(),
-      name: form.elements.name.value,
-      email: form.elements.email.value,
-      phone: form.elements.phone.value,
-      address: form.elements.address.value
-    };
-  }
-
-  function buildOrderEmailBody(order) {
-    var itemLines = order.items.map(function (item) {
-      return "- " + item.name + " (" + item.size + ") x " + item.qty + " = " + money(item.price * item.qty);
-    });
-
-    var lines = [
-      "Order reference (Flutterwave tx_ref): " + order.txRef,
-      "Payment status (as reported client-side): " + order.status,
-      "",
-      "Fulfilment method: " + order.fulfilmentLabel,
-      order.pickup
-        ? "Pickup location: " + PICKUP_ADDRESS
-        : "Delivery address: " + order.address,
-      "",
-      "Customer: " + order.name,
-      "Email: " + order.email,
-      "Phone: " + order.phone,
-      "",
-      "Items:"
-    ]
-      .concat(itemLines)
-      .concat([
-        "",
-        "Subtotal: " + money(order.subtotal),
-        order.pickup ? "Pickup: Free" : "Delivery: " + money(order.deliveryFee),
-        "Total: " + money(order.total),
-        "",
-        order.pickup
-          ? "This is a PICKUP order — the customer will collect from " + PICKUP_ADDRESS + "."
-          : "This order is for delivery.",
-        "",
-        "Please verify this payment in the Flutterwave dashboard " +
-          "(dashboard.flutterwave.com) before " +
-          (order.pickup ? "releasing this order." : "dispatching this order.")
-      ]);
-    return lines.join("\n");
-  }
-
-  function sendConfirmationEmail(order) {
-    var subject = encodeURIComponent("New Order — XNY Farms (" + order.txRef + ")");
-    var body = encodeURIComponent(buildOrderEmailBody(order));
-    window.location.href = "mailto:" + ORDER_NOTIFICATION_EMAIL + "?subject=" + subject + "&body=" + body;
-  }
-
-  function showConfirmation(order) {
+  /* The business is notified by the SERVER, and only once Flutterwave has confirmed the payment
+     (see /api/verify-order). Nothing is opened in the customer's email app any more, and the browser
+     no longer reports sales: it can't be trusted to. */
+  function showConfirmation(order, note) {
     els.content.style.display = "none";
     els.empty.style.display = "none"; // cart is now empty, but show the receipt, not "cart is empty"
     els.confirmation.style.display = "";
     els.confirmationRef.textContent = order.txRef;
+    if (els.confirmationNote) els.confirmationNote.textContent = note || "";
+    if (note && els.confirmationMain) els.confirmationMain.textContent = "We\u2019ve received your order and your payment details.";
     els.confirmation.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
-    els.resendEmailBtn.onclick = function () {
-      sendConfirmationEmail(order);
-    };
+  /* After the Flutterwave window reports success, ask OUR server to confirm it with Flutterwave.
+     "paid" -> confirmation. "pending"/"unverified" (the provider hasn't confirmed yet) -> retry a few
+     times, then show the receipt with a note, since the webhook will confirm it. "underpaid"/"failed"
+     -> explain, keep the cart, and tell them to contact us. */
+  function confirmPayment(order) {
+    var attempts = 0;
+    var delays = [0, 2500, 4000, 6000];
+    els.checkoutStatus.textContent = "Confirming your payment…";
+    els.checkoutStatus.style.color = "var(--muted)";
 
-    // Referral logging — fire-and-forget, only once the success message is
-    // already on screen. Never awaited, and it swallows its own errors, so
-    // a logging outage can't delay or break a paying customer's checkout.
-    // The commissionable amount is the SUBTOTAL, excluding delivery.
-    if (window.XNYReferral) {
-      window.XNYReferral.logOrder({
-        order_total_ngn: order.subtotal,
-        pricing_version: order.pricingVersion,
-        items: order.lines,
-        gross_total_ngn: order.total,
-        tx_ref: order.txRef,
-        timestamp: new Date().toISOString()
-      });
+    function attempt() {
+      window.fetch("/api/verify-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tx_ref: order.txRef })
+      })
+        .then(function (res) { return res.json().catch(function () { return {}; }); })
+        .then(function (r) {
+          var state = r && r.state;
+          if (state === "paid") {
+            cart.clearCart();
+            els.checkoutStatus.textContent = "";
+            showConfirmation(order, "");
+            return;
+          }
+          if (state === "underpaid" || state === "failed" || state === "unknown") {
+            els.checkoutStatus.innerHTML = "";
+            els.checkoutStatus.textContent =
+              "We couldn't match your payment to this order (reference " + order.txRef + "). Please contact us at xnyfarms@gmail.com or +234 806 013 8299 and quote that reference. Your cart has been kept.";
+            els.checkoutStatus.style.color = "#b23b2e";
+            return;
+          }
+          // pending / unverified / a transport error: try again a few times
+          attempts += 1;
+          if (attempts < delays.length) {
+            window.setTimeout(attempt, delays[attempts]);
+            return;
+          }
+          cart.clearCart();
+          els.checkoutStatus.textContent = "";
+          showConfirmation(order,
+            "Your payment is being confirmed with our payment provider, which can take a few minutes. " +
+            "You don't need to do anything: we'll process your order as soon as it is confirmed. " +
+            "If you don't hear from us within a few hours, please contact us and quote the reference above.");
+        })
+        .catch(function () {
+          attempts += 1;
+          if (attempts < delays.length) { window.setTimeout(attempt, delays[attempts]); return; }
+          cart.clearCart();
+          showConfirmation(order, "We couldn't reach our server to confirm your payment just now. It will be confirmed automatically; please contact us if you don't hear from us within a few hours, and quote the reference above.");
+        });
     }
-
-    // Fire the order-notification email automatically so the business
-    // doesn't depend on the customer remembering to click "resend" —
-    // but the button above still exists in case the mail client didn't
-    // open (e.g. the visitor closed the tab too quickly).
-    sendConfirmationEmail(order);
+    attempt();
   }
 
   function initPayNow() {
@@ -475,70 +438,114 @@
     });
   }
 
+  /* Step 1 of paying: the SERVER prices the cart and creates the order. The window is then opened with
+     the tx_ref and amount the server returns, never with a total worked out in this page. If the server's
+     total differs from what the shopper was shown (prices moved), nothing is charged: they are told. */
   function startPayment() {
-    {
-      if (typeof FlutterwaveCheckout !== "function") {
-        els.checkoutStatus.textContent =
-          "Payment system failed to load. Please refresh and try again, or contact us directly to place your order.";
-        els.checkoutStatus.style.color = "#b23b2e";
-        return;
-      }
-      if (FLUTTERWAVE_PUBLIC_KEY.indexOf("YOUR_FLUTTERWAVE_PUBLIC_KEY") === 0) {
-        els.checkoutStatus.textContent =
-          "Online payment isn't configured on this site yet. Please contact us directly to place your order.";
-        els.checkoutStatus.style.color = "#b23b2e";
-        return;
-      }
-
-      var subtotal = cart.getSubtotal();
-      var deliveryFee = getDeliveryFee();
-      var total = subtotal + deliveryFee;
-      var txRef = "xny-" + Date.now();
-      var form = els.checkoutForm;
-      paymentSettled = false;
-
-      els.checkoutStatus.textContent = "Opening secure payment window…";
-      els.checkoutStatus.style.color = "var(--muted)";
-
-      FlutterwaveCheckout({
-        public_key: FLUTTERWAVE_PUBLIC_KEY,
-        tx_ref: txRef,
-        amount: total,
-        currency: "NGN",
-        payment_options: PAYMENT_OPTIONS,
-        customer: {
-          email: form.elements.email.value,
-          phone_number: form.elements.phone.value,
-          name: form.elements.name.value
-        },
-        customizations: {
-          title: "XNY Farms Limited",
-          description: "Order payment — XNY Farms Limited",
-          logo: window.location.origin + "/assets/xny-logo.png"
-        },
-        callback: function (response) {
-          paymentSettled = true;
-          if (response && response.status === "successful") {
-            // Snapshot first — clearCart() below empties the source data.
-            var order = captureOrder(txRef, "successful");
-            cart.clearCart();
-            showConfirmation(order);
-          } else {
-            els.checkoutStatus.textContent =
-              "Payment was not completed (status: " + (response && response.status ? response.status : "unknown") +
-              "). Your cart is still saved — please try again.";
-            els.checkoutStatus.style.color = "#b23b2e";
-          }
-        },
-        onclose: function () {
-          if (!paymentSettled) {
-            els.checkoutStatus.textContent =
-              "Checkout was closed before payment finished. Your cart is still saved — you can try again anytime.";
-            els.checkoutStatus.style.color = "#b23b2e";
-          }
-        }
-      });
+    if (typeof FlutterwaveCheckout !== "function") {
+      els.checkoutStatus.textContent =
+        "Payment system failed to load. Please refresh and try again, or contact us directly to place your order.";
+      els.checkoutStatus.style.color = "#b23b2e";
+      return;
     }
+    if (FLUTTERWAVE_PUBLIC_KEY.indexOf("YOUR_FLUTTERWAVE_PUBLIC_KEY") === 0) {
+      els.checkoutStatus.textContent =
+        "Online payment isn't configured on this site yet. Please contact us directly to place your order.";
+      els.checkoutStatus.style.color = "#b23b2e";
+      return;
+    }
+
+    var form = els.checkoutForm;
+    var displayedTotal = cart.getSubtotal() + getDeliveryFee();
+    els.payBtn.disabled = true;
+    els.checkoutStatus.textContent = "Securing your order…";
+    els.checkoutStatus.style.color = "var(--muted)";
+
+    window.fetch("/api/create-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: cart.getOrderLines(),
+        fulfilment: getFulfilment(),
+        customer: { name: form.elements.name.value, email: form.elements.email.value, phone: form.elements.phone.value, address: form.elements.address.value },
+        ref_code: window.XNYReferral ? window.XNYReferral.getRefCode() : null
+      })
+    })
+      .then(function (res) { return res.json().catch(function () { return {}; }).then(function (d) { return { status: res.status, data: d }; }); })
+      .then(function (r) {
+        els.payBtn.disabled = false;
+        var d = r.data || {};
+        if (r.status !== 200 || !d.ok) {
+          els.checkoutStatus.textContent = d.error || "We couldn't start your payment. Please try again.";
+          els.checkoutStatus.style.color = "#b23b2e";
+          return;
+        }
+        if (Math.abs(d.amount - displayedTotal) > 0.005) {
+          // The server's price is the real one. Show it and ask the shopper to confirm.
+          pricing.load(true).then(function () {
+            cart.checkRepricing();
+            redraw();
+            showPriceNotice(true);
+            els.checkoutStatus.textContent = "Prices were updated. Please check your new total, then press Pay Now again.";
+            els.checkoutStatus.style.color = "#b23b2e";
+          });
+          return;
+        }
+        openPayment(d);
+      })
+      .catch(function () {
+        els.payBtn.disabled = false;
+        els.checkoutStatus.textContent = "We couldn't reach our server. Please check your connection and try again.";
+        els.checkoutStatus.style.color = "#b23b2e";
+      });
+  }
+
+  /* Step 2: open Flutterwave with exactly what the server created. */
+  function openPayment(serverOrder) {
+    var form = els.checkoutForm;
+    var txRef = serverOrder.tx_ref;
+    var order = { txRef: txRef, total: serverOrder.amount };
+    paymentSettled = false;
+    els.checkoutStatus.textContent = "Opening secure payment window…";
+    els.checkoutStatus.style.color = "var(--muted)";
+
+    FlutterwaveCheckout({
+      public_key: FLUTTERWAVE_PUBLIC_KEY,
+      tx_ref: txRef,
+      amount: serverOrder.amount,
+      currency: serverOrder.currency || "NGN",
+      payment_options: PAYMENT_OPTIONS,
+      customer: {
+        email: form.elements.email.value,
+        phone_number: form.elements.phone.value,
+        name: form.elements.name.value
+      },
+      customizations: {
+        title: "XNY Farms Limited",
+        description: "Order payment — XNY Farms Limited",
+        logo: window.location.origin + "/assets/xny-logo.png"
+      },
+      callback: function (response) {
+        paymentSettled = true;
+        var ok = response && (response.status === "successful" || response.status === "completed");
+        if (ok) {
+          // The window says it paid. That is only a hint: the server confirms it with Flutterwave.
+          confirmPayment(order);
+        } else {
+          els.checkoutStatus.textContent =
+            "Payment was not completed (status: " + (response && response.status ? response.status : "unknown") +
+            "). Your cart is still saved — please try again.";
+          els.checkoutStatus.style.color = "#b23b2e";
+        }
+      },
+      onclose: function () {
+        if (!paymentSettled) {
+          els.checkoutStatus.textContent =
+            "Checkout was closed before payment finished. Your cart is still saved — you can try again anytime.";
+          els.checkoutStatus.style.color = "#b23b2e";
+        }
+      }
+    });
   }
 
   document.addEventListener("DOMContentLoaded", function () {

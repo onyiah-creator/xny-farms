@@ -39,6 +39,7 @@
  * rounded-up transfer) is a normal thing to do. The report flags it instead.
  */
 
+import { adminDenied } from "../_lib/admin-auth.js";
 import { sendPayoutReceipt } from "../_lib/receipt.js";
 
 const CODE_PATTERN = /^[A-Za-z0-9]{3,32}$/;
@@ -124,10 +125,9 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: "Body must be a JSON object." }, 400);
   }
 
-  const supplied = typeof body.password === "string" ? body.password : "";
-  if (!timingSafeEqual(supplied, env.ADMIN_REPORT_PASSWORD)) {
-    return json({ ok: false, error: "Incorrect password." }, 401);
-  }
+  // Constant-time password check, with a lockout after repeated failures from one IP.
+  const denied = await adminDenied(request, env, body);
+  if (denied) return denied;
 
   if (body.delete_key !== undefined && body.payout_key !== undefined) {
     return json({ ok: false, error: "Send either delete_key or payout_key, not both." }, 400);

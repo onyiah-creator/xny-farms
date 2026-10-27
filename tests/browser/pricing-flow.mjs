@@ -86,45 +86,89 @@ export default async function ({ browser, harness, base, check, shots }) {
     check(`${label}: no horizontal scroll (${overflow.sw}/${overflow.cw}) and every control fits the screen`, overflow.sw <= overflow.cw && overflow.bad === 0, JSON.stringify(overflow));
     if (shots) await page.screenshot({ path: `${shots}/admin-pricing-${w}.png`, fullPage: true });
 
+    {
+      // the sticky bar: always on screen, counts unsaved edits, and saving needs no scrolling
+      const barBox = await page.locator("#pr-actionbar").boundingBox();
+      const vh = await page.evaluate(() => window.innerHeight);
+      await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+      const atTop = await page.locator("#pr-actionbar").boundingBox();
+      await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
+      const atBottom = await page.locator("#pr-actionbar").boundingBox();
+      check(`${label}: the save bar is stuck to the bottom of the screen at the top AND at the bottom of the page`, Math.abs(atTop.y + atTop.height - vh) < 2 && Math.abs(atBottom.y + atBottom.height - vh) < 2 && barBox.width <= w + 1, JSON.stringify({ atTop, atBottom, vh }));
+      check(`${label}: it counts the edits made so far and offers Review & save`, /^\d+ unsaved changes?$/.test(await text(page, "#pr-changes-count")) && await page.locator("#pr-review").isEnabled(), await text(page, "#pr-changes-count"));
+      await page.waitForTimeout(150);
+      const jumpBox = await page.locator(".admin-jump__up").boundingBox();
+      check(`${label}: the floating jump buttons sit above the save bar, not under it`, jumpBox && jumpBox.y + jumpBox.height <= atBottom.y + 1, JSON.stringify({ jumpBox, atBottom }));
+      await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    }
+
     if (w === 1280) {
       // saving: review diff, confirm, version bumps
-      await page.fill("#pr-note", "Palm oil to 780");
+      await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight / 2, behavior: "instant" }));
+      const yBefore = await page.evaluate(() => window.pageYOffset);
       await page.click("#pr-review");
-      await page.waitForSelector("#pr-diff:not([hidden])");
+      await page.waitForSelector("#pr-review-body:not([hidden])");
+      check("Review & save opens IN PLACE, over the page: the page does not jump or scroll, and the dialog is on screen", Math.abs((await page.evaluate(() => window.pageYOffset)) - yBefore) < 2 && await page.locator("#pr-confirm").isVisible() && await page.locator("#pr-note").isVisible());
+      await page.fill("#pr-note", "Palm oil to 780");
       const diff = await page.locator("#pr-diff-list li").allTextContents();
-      check("'Review changes' lists exactly what will change (and the sample/other edits don't count)", diff.includes("Palm Oil 50cl price ₦700 → ₦780") && diff.some((l) => /target net/.test(l)) && diff.some((l) => /Lagos delivery charge ₦1,500 → ₦1,540/.test(l)), diff.join(" | "));
+      check("'Review & save' lists exactly what will change (and the sample/other edits don't count)", diff.includes("Palm Oil 50cl price ₦700 → ₦780") && diff.some((l) => /target net/.test(l)) && diff.some((l) => /Lagos delivery charge ₦1,500 → ₦1,540/.test(l)), diff.join(" | "));
+      await page.keyboard.press("Escape");
+      check("Escape closes it and saves nothing", await page.locator("#pr-diff").isHidden() && (await adminApi({ action: "get" })).config.version === base0);
+      check("the edits are still there after closing (the count is unchanged)", /unsaved change/.test(await text(page, "#pr-changes-count")) && await page.locator("#pr-review").isEnabled());
+      await page.click("#pr-review"); await page.waitForSelector("#pr-review-body:not([hidden])");
       await page.click("#pr-cancel");
-      check("Cancel closes the diff and saves nothing", await page.locator("#pr-diff").isHidden() && (await adminApi({ action: "get" })).config.version === base0);
-      await page.click("#pr-review"); await page.waitForSelector("#pr-diff:not([hidden])");
+      check("'Keep editing' closes it too", await page.locator("#pr-diff").isHidden());
+      await page.click("#pr-review"); await page.waitForSelector("#pr-review-body:not([hidden])");
+      check("a price at the recommendation shows no warning and Save is ready at once", await page.locator("#pr-warn").isHidden() && await page.locator("#pr-confirm").isEnabled());
+      await page.fill("#pr-note", "Palm oil to 780");
       dialogs.length = 0;
       await page.click("#pr-confirm");
       await page.waitForFunction((v) => new RegExp("Version " + (v + 1) + " is live").test(document.getElementById("pr-version-line").textContent), base0);
-      check("a price at the recommendation needs no extra confirmation", dialogs.length === 0);
-      check("saved: 'Saved as version N' and the page now shows that version live", /Saved as version/.test(await text(page, "#pr-notice")));
+      check("saving needs no extra pop-up", dialogs.length === 0);
+      check("saved: 'Saved as version N', the dialog is closed and the page now shows that version live", /Saved as version/.test(await text(page, "#pr-notice")) && await page.locator("#pr-diff").isHidden());
+      check("after saving there is nothing unsaved: the bar says so and Review & save is disabled", (await text(page, "#pr-changes-count")) === "No unsaved changes" && await page.locator("#pr-review").isDisabled());
       check("the public API now serves the new price and charge", (await publicPrices()).products.find((p) => p.id === "palm-oil-50cl").price_ngn === 780 && (await publicPrices()).delivery.lagos === 1540);
       check("the change log lists the new version (with its note) as live, and older ones with Revert", /Palm oil to 780/.test(await text(page, "#pr-log")) && (await page.locator("#pr-log .badge--ok").count()) === 1 && (await page.locator('#pr-log button:has-text("Revert")').count()) >= 1);
 
-      // below the recommendation: extra confirm
+      // below the recommendation: an in-dialog warning that must be ticked
       const palm2 = card(page, "Palm Oil — 50cl");
       await palm2.locator("input").nth(2).fill("750");
+      check("one edit: the bar says '1 unsaved change'", (await text(page, "#pr-changes-count")) === "1 unsaved change");
+      await page.click("#pr-review"); await page.waitForSelector("#pr-review-body:not([hidden])");
+      check("a price BELOW the recommendation shows a warning naming the product and both prices", await page.locator("#pr-warn").isVisible() && /Palm Oil 50cl: ₦750 is below the recommended ₦780/.test(await text(page, "#pr-warn-list")), await text(page, "#pr-warn"));
+      check("...and Save stays disabled until it is acknowledged", await page.locator("#pr-confirm").isDisabled());
       await page.fill("#pr-note", "Cheaper palm oil");
-      await page.click("#pr-review"); await page.waitForSelector("#pr-diff:not([hidden])");
-      acceptNext = false; dialogs.length = 0;
-      await page.click("#pr-confirm");
-      await page.waitForTimeout(250);
-      check("saving a price BELOW the recommendation asks again, naming the product and both prices", dialogs.length === 1 && /NOT keep the net/.test(dialogs[0]) && /Palm Oil 50cl: ₦750 is below the recommended ₦780/.test(dialogs[0]), dialogs[0]);
-      check("declining it saves nothing", (await adminApi({ action: "get" })).config.version === base0 + 1);
-      acceptNext = true;
+      await page.click("#pr-cancel");
+      check("(declining saves nothing)", (await adminApi({ action: "get" })).config.version === base0 + 1);
+      await page.click("#pr-review"); await page.waitForSelector("#pr-review-body:not([hidden])");
+      check("reopening starts with the warning unticked", await page.locator("#pr-warn-ok").isChecked() === false && await page.locator("#pr-confirm").isDisabled());
+      await page.check("#pr-warn-ok");
+      check("ticking it enables Save", await page.locator("#pr-confirm").isEnabled());
+      await page.fill("#pr-note", "Cheaper palm oil");
       await page.click("#pr-confirm");
       await page.waitForFunction((v) => new RegExp("Version " + (v + 2) + " is live").test(document.getElementById("pr-version-line").textContent), base0);
       check("accepting it saves", (await publicPrices()).products.find((p) => p.id === "palm-oil-50cl").price_ngn === 750);
 
+      // discard
+      await card(page, "Palm Oil — 50cl").locator("input").nth(2).fill("999");
+      await page.click("#pr-discard");
+      check("Discard puts the live values back and clears the count", (await card(page, "Palm Oil — 50cl").locator("input").nth(2).inputValue()) === "750" && (await text(page, "#pr-changes-count")) === "No unsaved changes");
+
+      // next change
+      await card(page, "ASHE Honey — 50cl").locator("input").nth(2).fill("7100");
+      await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+      await page.click("#pr-next-change");
+      await page.waitForTimeout(700);
+      check("'Next change' scrolls to the edited card", await page.evaluate(() => { const c = document.querySelector("#pr-main .pr-card.is-changed"); const r = c.getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight; }));
+
       // stale page protection
       await adminApi({ action: "save", commission_rate: 0.09, note: "changed elsewhere" });
-      await card(page, "ASHE Honey — 50cl").locator("input").nth(2).fill("7100");
-      await page.click("#pr-review"); await page.waitForSelector("#pr-diff:not([hidden])"); await page.click("#pr-confirm");
+      await page.click("#pr-review"); await page.waitForSelector("#pr-review-body:not([hidden])");
+      if (await page.locator("#pr-warn").isVisible()) await page.check("#pr-warn-ok");
+      await page.click("#pr-confirm");
       await page.waitForFunction(() => /was changed/.test(document.getElementById("pr-save-status").textContent));
-      check("saving from a stale page is refused with a clear message (and nothing is overwritten)", /Reload to see the latest/.test(await text(page, "#pr-save-status")) && (await publicPrices()).products.find((p) => p.id === "ashe-honey-50cl").price_ngn === 7000);
+      check("saving from a stale page is refused with a clear message in the dialog (and nothing is overwritten)", /Reload to see the latest/.test(await text(page, "#pr-save-status")) && (await publicPrices()).products.find((p) => p.id === "ashe-honey-50cl").price_ngn === 7000);
+      await page.click("#pr-cancel");
       await page.click("#pr-reload");
       await page.waitForFunction(() => document.getElementById("pr-commission").value === "9");
 
@@ -258,23 +302,38 @@ export default async function ({ browser, harness, base, check, shots }) {
     await p2.waitForFunction(() => /Prices were updated/.test(document.getElementById("checkout-status").textContent));
     check("prices changed while the shopper was checking out: payment does NOT start; they are told and shown the new total (2 x 7,600 + 800 + 1,850)", (await p2.evaluate(() => window.__fw.length)) === 0 && (await text(p2, "#cart-total")) === "₦17,850" && await p2.locator("#cart-price-notice").isVisible(), await text(p2, "#cart-total"));
 
-    // 4. the happy path: amount = what is displayed, and the order carries the pricing version
+    // 4. the server prices the order; a short payment is NOT accepted, a full one is
     const ver = (await publicPrices()).version;
+    const orderReqs = [];
+    p2.on("request", (r) => { if (r.url().includes("/api/create-order")) orderReqs.push(r.postData()); });
     await p2.click("#pay-now-btn");
     await p2.waitForFunction(() => window.__fw.length === 1);
-    const opts = await p2.evaluate(() => window.__fw[0]);
-    check("Flutterwave is opened with exactly the displayed total (₦17,850)", opts.amount === 17850 && opts.currency === "NGN", JSON.stringify(opts).slice(0, 120));
-    const reqs = []; p2.on("request", (r) => { if (r.url().includes("/api/log-referral")) reqs.push(r.postData()); });
-    await p2.evaluate(() => window.__fw[0].callback({ status: "successful" }));
-    await p2.waitForSelector("#order-confirmation:not([hidden])", { state: "visible" }).catch(() => {});
-    await p2.waitForFunction(() => true);
-    await new Promise((r) => setTimeout(r, 600));
-    check("the referral log request carries the pricing version and ids + quantities only (no price)", reqs.length === 1 && (b => b.pricing_version === ver && JSON.stringify(b.items) === JSON.stringify([{ id: "ashe-honey-50cl", qty: 2 }, { id: "palm-oil-50cl", qty: 1 }]) && b.order_total_ngn === 16000 && !JSON.stringify(b.items).includes("price"))(JSON.parse(reqs[0] || "{}")), reqs[0]);
+    let opts = await p2.evaluate(() => window.__fw[0]);
+    check("Flutterwave is opened with the SERVER's reference and exactly the displayed total (₦17,850)", /^xny-\d{13}-[a-f0-9]{8}$/.test(opts.tx_ref) && opts.amount === 17850 && opts.currency === "NGN", JSON.stringify(opts).slice(0, 160));
+    check("the order request carries ids + quantities, the delivery choice and the customer, and NO price or total", orderReqs.length === 1 && (b => JSON.stringify(b.items) === JSON.stringify([{ id: "ashe-honey-50cl", qty: 2 }, { id: "palm-oil-50cl", qty: 1 }]) && b.fulfilment === "lagos" && b.ref_code === "BRW01" && !/price|amount|total|commission/i.test(JSON.stringify(b)))(JSON.parse(orderReqs[0] || "{}")), orderReqs[0]);
+    const srvOrder = JSON.parse(await harness.kv.get("order:" + opts.tx_ref));
+    check("the order was stored on the server as pending at the server's price (subtotal 16,000, delivery 1,850)", srvOrder.status === "pending" && srvOrder.total_ngn === 17850 && srvOrder.subtotal_ngn === 16000 && srvOrder.pricing_version === ver);
+    // the shopper tampers: the window charges ₦1 and the page is told "successful"
+    await A.get(`${base}/__flw?mode=short`);
+    await p2.evaluate(() => window.__fw[0].callback({ status: "successful", amount: 17850, transaction_id: 1 }));
+    await p2.waitForFunction(() => /couldn.t match your payment/.test(document.getElementById("checkout-status").textContent));
+    const afterShort = JSON.parse(await harness.kv.get("order:" + opts.tx_ref));
+    check("a short payment is NOT accepted: the order is flagged underpaid, no commission, the cart is kept, the shopper is told the reference", afterShort.status === "underpaid" && (await harness.kv.list({ prefix: "referral:BRW01:" })).keys.length === 0 && (await p2.evaluate(() => localStorage.getItem("xny_cart"))) !== "[]" && (await text(p2, "#checkout-status")).includes(opts.tx_ref));
+    check("...and the business was sent an ALERT, not an order notification", harness.mails.some((m) => /ALERT/.test(m.subject) && m.subject.includes(opts.tx_ref)) && !harness.mails.some((m) => /^New Order/.test(m.subject)));
+    // an honest payment
+    await A.get(`${base}/__flw?mode=pay`);
+    await p2.click("#pay-now-btn");
+    await p2.waitForFunction(() => window.__fw.length === 2);
+    opts = await p2.evaluate(() => window.__fw[1]);
+    await p2.evaluate(() => window.__fw[1].callback({ status: "successful" }));
+    await p2.waitForSelector("#order-confirmation:not([hidden])", { state: "visible" });
     const keys = (await harness.kv.list({ prefix: "referral:BRW01:" })).keys;
     const stored = JSON.parse(await harness.kv.get(keys[0].name));
-    check("the server recorded it against that version: subtotal 2 x 7,600 + 800 = 16,000 at the current rate", keys.length === 1 && stored.pricing_version === ver && stored.order_total_ngn === 16000 && !stored.legacy && !stored.price_mismatch && stored.commission_rate === 0.1 && stored.commission_ngn === 1600, JSON.stringify(stored));
+    check("a full, Flutterwave-confirmed payment shows the confirmation and the server credits the commission: 16,000 x 10% = 1,600", keys.length === 1 && keys[0].name === "referral:BRW01:" + opts.tx_ref && stored.pricing_version === ver && stored.order_total_ngn === 16000 && stored.verified === true && stored.commission_rate === 0.1 && stored.commission_ngn === 1600, JSON.stringify(stored));
+    check("exactly one 'New Order' email went to the business, naming the reference", harness.mails.filter((m) => /^New Order/.test(m.subject) && m.subject.includes(opts.tx_ref)).length === 1);
     const cartAfter = await p2.evaluate(() => localStorage.getItem("xny_cart"));
-    check("the cart is cleared after a successful payment", cartAfter === "[]");
+    check("the cart is cleared after a confirmed payment", cartAfter === "[]");
+    check("the confirmation page names the server's reference, and there is no 'resend order email' step any more", (await text(p2, "#order-confirmation")).includes(opts.tx_ref) && (await p2.locator("#resend-email-btn").count()) === 0);
     await c2.close();
   }
   await api.close();

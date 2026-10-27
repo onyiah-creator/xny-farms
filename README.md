@@ -227,9 +227,10 @@ until the checklist above is complete.
 
 ## 5. Cart, Checkout & Payments (Flutterwave)
 
-`cart.html` implements a client-side cart + checkout using **Flutterwave's
-Inline Checkout JS SDK**, entirely from the browser — there is no backend,
-consistent with the rest of this static site.
+`cart.html` holds the cart in the browser and takes payment with **Flutterwave's
+Inline Checkout JS SDK**. The browser only collects the order and opens the payment
+window: the **server** prices the order and confirms the payment (see *How an order
+works now* below).
 
 ### How it works
 - **Cart storage:** `js/cart.js` keeps cart contents (product id, name, size,
@@ -252,8 +253,8 @@ consistent with the rest of this static site.
   (they used to be constants in `js/checkout.js`).
 - **Checkout:** after "Proceed to Checkout", the visitor enters name, email,
   phone and delivery address, then "Pay Now" opens Flutterwave's Inline
-  Checkout modal for the calculated total (subtotal + delivery) in NGN, with
-  a generated `tx_ref` (`xny-<timestamp>`).
+  Checkout modal for the total **the server calculated** (subtotal + delivery) in NGN,
+  with the server's `tx_ref` (`xny-<ms>-<8 hex>`).
 
 ### ⚠️ You must add your Flutterwave public key
 `js/checkout.js` ships with a placeholder:
@@ -265,34 +266,44 @@ Until you do, "Pay Now" shows a friendly "online payment isn't configured
 yet" message instead of trying to open the checkout modal — the site stays
 functional, it just won't take real payments.
 
-### Order notification — read this
-This is a static site with **no backend or webhook**, so XNY Farms is **not**
-automatically notified when a payment succeeds. To close that gap, a
-successful Flutterwave callback automatically also opens a pre-filled
-`mailto:` link (same pattern as the contact/wholesale forms) addressed to
-`xnyfarms@gmail.com` with the order details and the Flutterwave `tx_ref`. The
-on-page confirmation also shows a **"Resend Confirmation Email"** button in
-case the visitor's browser didn't open their email client, or they closed the
-tab before it fired.
+### How an order works now (server-priced, server-verified)
+The browser **never decides what an order costs or whether it was paid.**
 
-**The mailto notification is a convenience, not the source of truth.** A
-customer could close their browser before it fires. The real record of
-whether a payment actually succeeded is always the **Flutterwave merchant
-dashboard** (**dashboard.flutterwave.com**) — check it there before
-dispatching any order, don't rely solely on receiving the confirmation email.
+1. **Pay Now** sends the cart's product ids and quantities (never prices), the delivery choice, the
+   customer's details and the referral code to `POST /api/create-order`. The server prices the cart
+   from the live pricing config, stores `order:{tx_ref}` as **pending** (7-day expiry) and replies with
+   the `tx_ref` (`xny-<ms>-<8 random hex>`) and the amount to charge.
+2. The Flutterwave window opens with **that** `tx_ref` and amount. (If the amount differs from the
+   total on screen, the shopper is told "Prices were updated" and nothing is charged.)
+3. When the window reports success, the page calls `POST /api/verify-order`. The server asks
+   **Flutterwave** (`verify_by_reference`, with the secret key) and only marks the order **paid** if
+   the transaction is `successful`, in `NGN`, for the right `tx_ref`, and for **at least the order total**.
+   Flutterwave's **webhook** (`POST /api/flutterwave-webhook`) does the same check, so an order is still
+   confirmed if the customer closes the tab. Both paths are idempotent: one order, one email, one commission.
+4. Only then is the affiliate credited (at the price and rate fixed when the order was **created**) and
+   `xnyfarms@gmail.com` emailed "New Order — XNY Farms (tx_ref)" with the customer's details and the
+   verified payment. The old browser `mailto:` notification is gone.
 
-### Security — secret key & fraud protection
-- The Flutterwave **secret key must never** be added to this repository or
-  any client-side code (`js/checkout.js` or otherwise). It is only ever
-  meant to be used **server-side**, which this static-site MVP does not
-  implement.
-- **Known limitation:** payment success here is currently trusted from the
-  client-side Flutterwave callback alone — it is **not server-verified**.
-  That's enough to accept real payments and get notified today, but for full
-  fraud protection you should eventually add a small **Cloudflare Pages
-  Function** that calls Flutterwave's **Verify Transaction API** with the
-  secret key, server-side, before treating an order as confirmed. This is a
-  recommended fast-follow, not a blocker for launching checkout today.
+If a payment is **short** (someone edits the amount in Flutterwave's window), the order becomes
+`underpaid`: not paid, no commission, no order email, and you get an **ALERT** email saying not to
+release goods. The shopper is shown their reference and asked to contact you. If Flutterwave can't be
+reached the order stays pending and is retried (the page retries; the webhook answers 503 so Flutterwave
+retries). If Flutterwave rejects our secret key you are emailed that verification is failing.
+
+**Setup (Cloudflare Pages -> Settings -> Environment variables, then redeploy):**
+
+| Variable | Value |
+| --- | --- |
+| `FLW_SECRET_KEY` | Your Flutterwave **secret** key (dashboard -> Settings -> API). Server only: never in the repo or the browser. Without it `/api/create-order` answers 503 and **checkout is unavailable**, by design: an order that cannot be verified must never be accepted. |
+| `FLW_SECRET_HASH` | A long random string you invent, also entered as the **Secret hash** under Flutterwave dashboard -> Settings -> Webhooks. |
+
+Also add the webhook URL `https://xnyfarms.com/api/flutterwave-webhook` there. Then make one **small
+real payment** to confirm it end to end (the code follows Flutterwave's documented response shape, but
+it could only be tested against a mock, never the live API).
+
+Flutterwave remains your record of money received: reconcile against its dashboard as usual.
+
+---
 
 ---
 
@@ -423,21 +434,18 @@ method. There is also a sample-order preview and delivery cost cards (with a
 manual override of the customer charge, showing the effect).
 
 **Commission is recorded against the price in force when the order was placed.**
-Checkout sends the pricing version it used and the cart's ids and quantities
-(never prices). `log-referral.js` loads that immutable snapshot, works out the
-commissionable subtotal itself, and records `commission = that snapshot's rate x
-subtotal`, together with `pricing_version`, `items`, `commission_rate`,
-`commission_ngn` and `order_total_ngn`. If the browser's total differs from the
-server's by more than ₦1, the server amount is credited and the record is flagged
-`price_mismatch` (shown as a badge in the admin report). An order with no usable
-version or items (an old cached copy of the site, an unknown version, or a version
-replaced more than 24 hours ago) falls back to the browser's subtotal x the rate in
-force now and is flagged `legacy`. **Records are never recomputed:** the report,
-affiliate stats and payouts all read each record's stored amount; only a very old
-record with no stored amount or rate falls back to 8%. The rate shown to people
-("earn 8%" on the signup pages, `my-stats.html` and the emails, read from KV when an
-email is sent) is the current one, for display only. (The static `<meta>` / social
-descriptions on `affiliate-signup.html` still say 8%; they can't be updated by script.)
+`/api/create-order` prices the cart from the live config and stores the `pricing_version`, the item
+prices and the `commission_rate` **on the order itself**, and binds the referral code. When Flutterwave
+confirms payment the server writes `referral:{CODE}:{tx_ref}` from that stored order: `commission = the
+order's rate x the order's subtotal`, with `pricing_version`, `items`, `commission_rate`,
+`commission_ngn` and `order_total_ngn`. A price or rate change between creating and paying an order
+changes nothing for that order. **Records are never recomputed:** the report, affiliate stats and
+payouts all read each record's stored amount; only a very old record with no stored amount or rate
+falls back to 8%. (Records written before server-side orders may carry `legacy` / `price_mismatch`
+flags, still shown in the admin report.) The rate shown to people ("earn 8%" on the signup pages,
+`my-stats.html` and the emails, read from KV when an email is sent) is the current one, for display
+only. (The static `<meta>` / social descriptions on `affiliate-signup.html` still say 8%; they can't
+be updated by script.)
 
 **The storefront.** `products.html` and `index.html` mark each price with
 `data-product-id` and update it from the API; the baked-in price stays as the
@@ -586,7 +594,7 @@ old affiliates by the email in their record.
 **Suspending an affiliate.** Affiliate records carry `status` `"active"` or
 `"suspended"` (no status = active, so existing affiliates keep working). On the
 Approved affiliates list, **Suspend** / **Reactivate** (with a confirmation) flips
-it. A suspended code is not credited by `log-referral.js` and `my-stats.html`
+it. A suspended code is not credited by the order settlement and `my-stats.html`
 shows a neutral "account paused, contact us" message instead of figures.
 Nothing is deleted: orders, payments and the balance stay in the referral report,
 flagged **suspended**, so commission that is owed is never hidden. The list also
@@ -731,7 +739,11 @@ taken from KV, failure handling, phone normalisation, the receipt's button
 contrast). Pricing has `node tests/pricing-math.test.mjs` (the maths, including the
 780 / 700.83 worked check), `node tests/pricing-api.test.mjs` (public privacy,
 validation, versioning, revert, history) and `node tests/log-referral-pricing.test.mjs`
-(versioned commission, mismatch, legacy fallback, immutability of history).
+(commission fixed at order time, immutability of history, legacy records). Server-side orders have
+`node tests/orders.test.mjs` (server pricing ignores the browser, Flutterwave verification with a
+mocked API, underpaid/tampered payments, webhook signature, idempotency, self-referral) and
+`node tests/security.test.mjs` (admin lockout on every admin endpoint, stats throttle, `_headers`,
+no secrets in browser files).
 Automatic signup has `node tests/affiliate-signup.test.mjs` (mocked KV
 with TTLs, a fake clock, mocked Resend and Turnstile). Browser tests for the
 password toggle and the signup pages are in `tests/browser/` and need Playwright:
@@ -739,14 +751,16 @@ password toggle and the signup pages are in `tests/browser/` and need Playwright
 Gmail renders it — for that, send a real email to a test affiliate.
 
 ### ⚠️ Only approved codes earn commission
-`/api/log-referral` records a sale **only if `affiliate:{CODE}` exists** — so
-an invented `?ref=` in someone's URL bar can't manufacture commission. An
-unrecognised code is ignored silently: the customer sees nothing either way,
-and their checkout is unaffected.
+Commission is credited only for a **paid, server-verified order** whose referral code is an approved,
+non-suspended `affiliate:{CODE}`, and not when the buyer's email or phone matches the affiliate's own
+(self-referral). An invented `?ref=` in someone's URL bar earns nothing, and neither does anything
+posted to `/api/log-referral` (it now only re-reads a paid order's stored commission; it ignores any code,
+amount or items in the request). Orders with an unrecognised or inactive code are still paid normally;
+they just credit nobody.
 
 **The practical consequence: assign the code _before_ the affiliate starts
-sharing their link.** Sales made through a code that hasn't been approved yet
-are not recorded and cannot be recovered afterwards.
+sharing their link.** The code is checked when the order is **paid**; a sale made through a code that
+wasn't approved at that moment is not credited and is not recovered afterwards.
 
 ### Affiliates checking their own stats
 Affiliates can see their own numbers at
@@ -869,8 +883,12 @@ the password, so use a strong one.
 ### How it works
 | Piece | What it does |
 | --- | --- |
-| `js/referral.js` | Loaded on every page. Captures `?ref=`, stores it, and POSTs completed orders to the logging endpoint. |
-| `functions/api/log-referral.js` | Pages Function. Validates the payload, **checks the code is an approved affiliate**, computes 8% commission, writes to KV as `referral:{CODE}:{tx_ref}`. |
+| `js/referral.js` | Loaded on every page. Captures `?ref=` and stores it. (It no longer reports sales: the server credits commission from verified orders.) |
+| `functions/api/create-order.js` | Pages Function. Public. Prices the cart on the server and stores a pending `order:{tx_ref}`; replies with the `tx_ref` and amount to charge. Rate limited. |
+| `functions/api/verify-order.js` | Pages Function. Public. Confirms an order with Flutterwave (server to server) and settles it; replies `paid`/`pending`/`underpaid`/... only. |
+| `functions/api/flutterwave-webhook.js` | Pages Function. Flutterwave's `verif-hash`-signed webhook; re-verifies the payment, then settles the order. |
+| `functions/_lib/orders.js`, `referrals.js`, `admin-auth.js` | Order creation/settlement; commission crediting from a paid order; the admin password check with brute-force lockout. |
+| `functions/api/log-referral.js` | Legacy. Takes only a `tx_ref`; for a **paid** order it re-writes the commission fixed at order time. Cannot create sales. |
 | `functions/api/get-referrals.js` | Pages Function. Password-checked payout report: per affiliate and in total, earned / paid / balance due plus payout details. With `{ "code": ... }` it returns that one affiliate's orders and payments. |
 | `functions/api/record-payout.js` | Pages Function. Password-checked; records a payment made to an affiliate (`payout:{CODE}:...`) and optionally emails the receipt (`email_receipt: true`); `{ payout_key }` resends a receipt; `{ delete_key }` removes a payment. Only `payout:` keys are accepted for both. |
 | `functions/_lib/*.js` | Shared code imported by the functions (no `onRequest*` export, so Pages doesn't route them): `email.js` (Resend sender, buttons, signature), `payouts.js` (KV readers, kobo maths, phone normalisation, message text), `receipt.js` (the receipt email). |
@@ -927,21 +945,65 @@ is submitted or the field is cleared. The admin pages load the script directly;
 (including one added later), so a future password field is covered
 automatically, as long as the page loads `main.js` (or the script itself).
 
-Logging happens **after** the customer's payment confirmation is already on
-screen, is never awaited, and fails silently (console only) — a logging
-outage can never delay or break a real checkout.
-
-Records are keyed by `tx_ref`, so a retry or a page refresh rewrites the
+Records are keyed by `tx_ref`, so a retry, a webhook replay or a page refresh rewrites the
 same record instead of double-counting a sale.
 
-### ⚠️ Trust: verify before you pay commission
-`/api/log-referral` is public and unauthenticated, and it trusts the order
-amount the browser sends it. That's the same trust boundary the checkout
-already has (payment success comes from Flutterwave's client-side callback
-and isn't server-verified — see Section 5). In practice that means someone
-who discovers the endpoint could POST fabricated sales.
+### Commission and the money
+Commission is recorded only from orders Flutterwave has confirmed, so the old "reconcile every
+`tx_ref` before paying" warning no longer applies. It is still sensible to glance at Flutterwave
+before a large payout. Affiliates' `my-stats.html` totals are visible to anyone who knows the code
+(see *Affiliates checking their own stats*).
 
-**Reconcile each `tx_ref` against your Flutterwave dashboard before paying
-out.** The proper fix is the same fast-follow recommended in Section 5:
-verify the transaction server-side with Flutterwave's Verify Transaction
-API using the secret key, and record only what that call confirms.
+---
+
+## 8. Security
+
+### Could a customer pay less by editing the price in their browser?
+They could in the earlier design, and that is what this section fixes. Before, the browser decided the
+amount sent to Flutterwave, "paid" was trusted from a client-side callback, and anyone could POST a
+fabricated sale to the referral endpoint. Now:
+
+| Attack | What happens |
+| --- | --- |
+| Edit prices, totals, delivery or the commission rate in the browser or in the request | Ignored. `/api/create-order` takes only product ids and quantities and prices them from the server's pricing config. |
+| Edit the amount inside Flutterwave's payment window | Flutterwave takes the lower amount, but the server compares it with the order total: the order is **underpaid**, never marked paid, no commission, and you get an **ALERT** email. |
+| Claim "payment successful" without paying | The server asks Flutterwave itself (secret key). A claim from the browser is never believed. |
+| Pay in another currency, or reuse another payment's reference | Currency must be `NGN`, the `tx_ref` must match and the amount must cover the total. |
+| Invent a sale for an affiliate (`/api/log-referral`) | It cannot create one: it only re-reads a paid order's stored commission. Commission is credited by the server from verified orders, at the price and rate fixed when the order was created. |
+| Buy through your own affiliate link | Not credited when the buyer's email or phone matches the affiliate's. |
+| Guess the admin password | 10 wrong attempts per IP in 15 minutes locks that IP out of **every** admin endpoint (429, even with the right password) until the window passes; comparison is constant-time. |
+| Walk through affiliate codes on the public stats lookup | 60 lookups per IP per 10 minutes. |
+| Flood order creation or verification | 20 orders and 90 verifications per IP per hour. |
+
+Response headers (`_headers`): `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
+`Permissions-Policy`, **HSTS** (one year), and a partial **Content-Security-Policy**
+(`object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'`). The admin pages are
+`no-store` and noindex. No script, style or image restriction is set on purpose: Flutterwave's checkout
+and Turnstile load third-party scripts, and a strict CSP added blind could break payment. All text the
+pages build from data uses `textContent`; the few `innerHTML` uses are fixed strings or escaped values.
+Secrets (`FLW_SECRET_KEY`, `FLW_SECRET_HASH`, `RESEND_API_KEY`, `ADMIN_REPORT_PASSWORD`,
+`TURNSTILE_SECRET_KEY`) live only in Cloudflare environment variables; `tests/security.test.mjs` fails if
+one is named in any browser-served file.
+
+### What is **not** solved (be honest with yourself about these)
+- **Amount editing in Flutterwave's window** can still happen on Flutterwave's side; the protection is that
+  an underpaid order is detected and never fulfilled. **Check the "New Order" email, not just that someone
+  paid, before releasing goods**, and treat an ALERT email as "do not ship".
+- The Flutterwave verify call follows their documented response shape but was only tested against a mock.
+  Make one small real payment after setting the variables, and confirm you receive the "New Order" email.
+- Until `FLW_SECRET_KEY` is set, checkout is **disabled** (503), by design.
+- `my-stats.html` is public to anyone who knows an affiliate's code (totals only, no personal data).
+- The admin area is protected by one shared password: make it long and unique. The lockout is per IP.
+- A full CSP (restricting scripts to known hosts) is a sensible next step once it can be tested against live
+  Flutterwave and Turnstile.
+- Customer name, email, phone and delivery address are stored on the order in KV (pending orders expire after
+  7 days; paid orders are kept). Under the NDPR, delete them when you no longer need them.
+- An old cached copy of the checkout page (cached up to 5 minutes) that completes a payment will not have an
+  order on the server, so that one sale will not be credited or emailed automatically; check Flutterwave.
+
+### Admin screens
+Every admin page has floating **jump to the bottom / back to the top** buttons (`js/admin-scroll.js`). On the
+pricing page a **sticky bar** stays at the bottom of the screen showing "N unsaved changes", with **Next
+change**, **Discard** and **Review & save**. Review & save opens over the page (no scrolling): it lists exactly
+what will change, shows a warning you must tick if any price is below the recommendation, takes the note, and
+saves. The browser also warns before you leave the page with unsaved edits.

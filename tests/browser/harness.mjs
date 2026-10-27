@@ -30,13 +30,21 @@ export async function startHarness(port) {
       return { keys: sl.map((name) => ({ name, metadata: store.get(name).metadata })), cursor: n < all.length ? String(n) : undefined, list_complete: n >= all.length };
     }
   };
-  const env = { REFERRALS_KV: kv, ADMIN_REPORT_PASSWORD: "admin-pw", RESEND_API_KEY: "re_test_key" };
+  const env = { REFERRALS_KV: kv, ADMIN_REPORT_PASSWORD: "admin-pw", RESEND_API_KEY: "re_test_key", FLW_SECRET_KEY: "FLWSECK-browser-test", FLW_SECRET_HASH: "browser-test-hash" };
   const mails = [];
   let delayMs = 0;
   let pricingFail = false;
+  let flwMode = "none";   // what the mocked Flutterwave says about any tx_ref: none | pay | short
 
   globalThis.fetch = async (url, init) => {
     if (String(url).startsWith("https://challenges.cloudflare.com/")) return new Response(JSON.stringify({ success: true }), { status: 200 });
+    if (String(url).startsWith("https://api.flutterwave.com/v3/transactions/verify_by_reference")) {
+      const txRef = new URL(String(url)).searchParams.get("tx_ref");
+      const raw = await kv.get("order:" + txRef);
+      if (!raw || flwMode === "none") return new Response(JSON.stringify({ status: "error", message: "No transaction was found for this transaction reference", data: null }), { status: 400 });
+      const o = JSON.parse(raw);
+      return new Response(JSON.stringify({ status: "success", data: { id: 77, tx_ref: txRef, flw_ref: "FLW-BROWSER", amount: flwMode === "short" ? 1 : o.total_ngn, currency: "NGN", status: "successful" } }), { status: 200 });
+    }
     mails.push(JSON.parse(init.body));
     return new Response(JSON.stringify({ id: "re_" + mails.length }), { status: 200 });
   };
@@ -48,6 +56,7 @@ export async function startHarness(port) {
     const url = new URL(req.url, "http://localhost");
     if (url.pathname === "/__mails") { res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify(mails)); return; }
     if (url.pathname === "/__delay") { delayMs = Number(url.searchParams.get("ms") || 0); res.writeHead(200); res.end("ok"); return; }
+    if (url.pathname === "/__flw") { flwMode = url.searchParams.get("mode") || "none"; res.writeHead(200); res.end("ok"); return; }
     if (url.pathname === "/__pricing-fail") { pricingFail = url.searchParams.get("on") === "1"; res.writeHead(200); res.end("ok"); return; }
     if (url.pathname === "/__turnstile") { if (url.searchParams.get("on") === "1") env.TURNSTILE_SECRET_KEY = "x"; else delete env.TURNSTILE_SECRET_KEY; res.writeHead(200); res.end("ok"); return; }
 

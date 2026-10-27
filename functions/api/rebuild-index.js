@@ -21,6 +21,7 @@
  * per request, so with several hundred affiliates this may need to be run more than once;
  * it picks up where it left off.
  */
+import { adminDenied } from "../_lib/admin-auth.js";
 import { loadAffiliates, resolvePayoutDetails } from "../_lib/payouts.js";
 import { normaliseEmail, normalisePhoneIntl, nowIso } from "../_lib/identity.js";
 import { idxEmailKey, idxPhoneKey, liveOwner } from "../_lib/signup.js";
@@ -54,9 +55,9 @@ export async function onRequestPost(context) {
   let body;
   try { body = await request.json(); } catch (err) { return json({ ok: false, error: "Body must be valid JSON." }, 400); }
   if (!body || typeof body !== "object") return json({ ok: false, error: "Body must be a JSON object." }, 400);
-  if (!timingSafeEqual(typeof body.password === "string" ? body.password : "", env.ADMIN_REPORT_PASSWORD)) {
-    return json({ ok: false, error: "Incorrect password." }, 401);
-  }
+  // Constant-time password check, with a lockout after repeated failures from one IP.
+  const denied = await adminDenied(request, env, body);
+  if (denied) return denied;
 
   let affiliates;
   let details;

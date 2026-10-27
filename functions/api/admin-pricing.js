@@ -16,6 +16,7 @@
  *
  * Rates are fractions (0.08 = 8%). Prices are whole naira. See _lib/pricing.js for the rules.
  */
+import { adminDenied } from "../_lib/admin-auth.js";
 import { loadCurrent, getSnapshot, validateSave, diffConfigs, writeNewVersion, listVersions, cloneConfig } from "../_lib/pricing.js";
 
 const HISTORY_MAX = 50;
@@ -50,9 +51,9 @@ export async function onRequestPost(context) {
   let body;
   try { body = await request.json(); } catch (err) { return json({ ok: false, error: "Body must be valid JSON." }, 400); }
   if (!body || typeof body !== "object") return json({ ok: false, error: "Body must be a JSON object." }, 400);
-  if (!timingSafeEqual(typeof body.password === "string" ? body.password : "", env.ADMIN_REPORT_PASSWORD)) {
-    return json({ ok: false, error: "Incorrect password." }, 401);
-  }
+  // Constant-time password check, with a lockout after repeated failures from one IP.
+  const denied = await adminDenied(request, env, body);
+  if (denied) return denied;
 
   const action = body.action;
   try {

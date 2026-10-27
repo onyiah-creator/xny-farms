@@ -11,6 +11,7 @@
  * that is owed is never hidden.
  * -> { ok: true, code, status, changed }
  */
+import { adminDenied } from "../_lib/admin-auth.js";
 import { getJson } from "../_lib/payouts.js";
 import { affiliateMetadata } from "../_lib/signup.js";
 import { nowIso } from "../_lib/identity.js";
@@ -42,9 +43,9 @@ export async function onRequestPost(context) {
   let body;
   try { body = await request.json(); } catch (err) { return json({ ok: false, error: "Body must be valid JSON." }, 400); }
   if (!body || typeof body !== "object") return json({ ok: false, error: "Body must be a JSON object." }, 400);
-  if (!timingSafeEqual(typeof body.password === "string" ? body.password : "", env.ADMIN_REPORT_PASSWORD)) {
-    return json({ ok: false, error: "Incorrect password." }, 401);
-  }
+  // Constant-time password check, with a lockout after repeated failures from one IP.
+  const denied = await adminDenied(request, env, body);
+  if (denied) return denied;
 
   const rawCode = typeof body.code === "string" ? body.code.trim() : "";
   if (!CODE_PATTERN.test(rawCode)) return json({ ok: false, error: "Invalid code." }, 400);

@@ -36,6 +36,7 @@
  * message rather than guessing — the admin page offers a retry.
  */
 
+import { adminDenied } from "../_lib/admin-auth.js";
 import math from "../../js/pricing-math.js";
 import { currentCommissionRate } from "../_lib/pricing.js";
 import { SITE_URL, X_URL, BUTTON_TEXT, esc, button, signatureRow, sendViaResend } from "../_lib/email.js";
@@ -229,10 +230,9 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: "Body must be valid JSON." }, 400);
   }
 
-  const supplied = typeof body.password === "string" ? body.password : "";
-  if (!timingSafeEqual(supplied, env.ADMIN_REPORT_PASSWORD)) {
-    return json({ ok: false, error: "Incorrect password." }, 401);
-  }
+  // Constant-time password check, with a lockout after repeated failures from one IP.
+  const denied = await adminDenied(request, env, body);
+  if (denied) return denied;
 
   const rawCode = typeof body.code === "string" ? body.code.trim() : "";
   if (!CODE_PATTERN.test(rawCode)) {

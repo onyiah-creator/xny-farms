@@ -69,6 +69,7 @@
  * 0.30000000000000004.
  */
 
+import { adminDenied } from "../_lib/admin-auth.js";
 import {
   COMMISSION_RATE, REFERRAL_PREFIX, PAYOUT_PREFIX,
   toKobo, fromKobo, figures, listAll, mapBatched, getJson,
@@ -288,10 +289,9 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: "Body must be a JSON object." }, 400);
   }
 
-  const supplied = typeof body.password === "string" ? body.password : "";
-  if (!timingSafeEqual(supplied, env.ADMIN_REPORT_PASSWORD)) {
-    return json({ ok: false, error: "Incorrect password." }, 401);
-  }
+  // Constant-time password check, with a lockout after repeated failures from one IP.
+  const denied = await adminDenied(request, env, body);
+  if (denied) return denied;
 
   // Detail for one affiliate (the expanded row).
   if (body.code !== undefined) {

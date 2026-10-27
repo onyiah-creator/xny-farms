@@ -9,7 +9,7 @@
   <meta name="robots" content="noindex, nofollow, noarchive" />
   <link rel="icon" href="assets/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
-  <link rel="stylesheet" href="css/styles.css?v=17" />
+  <link rel="stylesheet" href="css/styles.css?v=18" />
 </head>
 <body>
 
@@ -102,31 +102,48 @@
           <dl class="pr-break" id="pr-sample-result"></dl>
         </div>
 
-        <!-- Save -->
-        <div class="form-card pr-card" style="margin-top:2rem">
-          <h2 class="pr-h">Save changes</h2>
-          <div class="field">
-            <label for="pr-note">Note (what and why, shown in the change log)</label>
-            <input id="pr-note" type="text" maxlength="200" autocomplete="off" placeholder="e.g. Palm oil up after supplier increase" />
-          </div>
-          <div style="margin-top:1rem;display:flex;gap:.6rem;flex-wrap:wrap">
-            <button type="button" class="btn btn--green" id="pr-review">Review changes</button>
-          </div>
-          <p id="pr-save-status" class="form-status" role="status" aria-live="polite"></p>
-          <div id="pr-diff" class="pr-diff" hidden>
-            <h3 style="font-size:1.05rem;margin:0 0 .5rem">This will change:</h3>
-            <ul id="pr-diff-list"></ul>
-            <div style="margin-top:.9rem;display:flex;gap:.6rem;flex-wrap:wrap">
-              <button type="button" class="btn btn--green" id="pr-confirm">Save as a new version</button>
-              <button type="button" class="btn btn--outline" id="pr-cancel">Cancel</button>
-            </div>
-          </div>
-        </div>
-
         <!-- Change log -->
         <h2 class="pr-h" style="margin-top:2rem">Change log</h2>
         <p class="form-note" style="margin-top:0">Every version is kept and never edited. <strong>Revert</strong> doesn&rsquo;t delete anything: it saves a <em>new</em> version with the old values.</p>
         <ul id="pr-log" class="pr-log"></ul>
+      </div>
+
+      <!-- Sticky action bar: always on screen while there are edits, so saving never means scrolling -->
+      <div class="pr-actionbar no-print" id="pr-actionbar" hidden>
+        <div class="pr-actionbar__inner">
+          <p class="pr-actionbar__count" id="pr-changes-count" role="status" aria-live="polite">No changes yet</p>
+          <div class="pr-actionbar__btns">
+            <button type="button" class="btn btn--outline btn--sm" id="pr-next-change" hidden>Next change &darr;</button>
+            <button type="button" class="btn btn--outline btn--sm" id="pr-discard" hidden>Discard</button>
+            <button type="button" class="btn btn--green" id="pr-review" disabled>Review &amp; save</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Review & save, in place: opens over the page so nothing has to be scrolled to -->
+      <div class="pr-modal no-print" id="pr-diff" hidden>
+        <div class="pr-modal__backdrop" id="pr-modal-backdrop"></div>
+        <div class="pr-modal__panel" role="dialog" aria-modal="true" aria-labelledby="pr-modal-title" tabindex="-1" id="pr-modal-panel">
+          <h2 class="pr-h" id="pr-modal-title">Review your changes</h2>
+          <p id="pr-save-status" class="form-status" role="status" aria-live="polite"></p>
+          <div id="pr-review-body" hidden>
+            <p class="form-note" style="margin:0 0 .4rem">This will change:</p>
+            <ul id="pr-diff-list" class="pr-modal__list"></ul>
+            <div class="pr-warn" id="pr-warn" hidden>
+              <strong>These prices will NOT keep the net you asked for:</strong>
+              <ul id="pr-warn-list"></ul>
+              <label class="consent__label" for="pr-warn-ok"><input id="pr-warn-ok" type="checkbox" /> <span>I understand &mdash; save them anyway</span></label>
+            </div>
+            <div class="field" style="margin-top:.9rem">
+              <label for="pr-note">Note (what and why, shown in the change log)</label>
+              <input id="pr-note" type="text" maxlength="200" autocomplete="off" placeholder="e.g. Palm oil up after supplier increase" />
+            </div>
+          </div>
+          <div class="pr-modal__btns">
+            <button type="button" class="btn btn--green" id="pr-confirm" disabled>Save as a new version</button>
+            <button type="button" class="btn btn--outline" id="pr-cancel">Keep editing</button>
+          </div>
+        </div>
       </div>
 
       <p class="form-note admin-links no-print" style="margin-top:1.5rem">
@@ -136,8 +153,9 @@
     </div>
   </section>
 
-  <script src="js/pricing-math.js?v=17"></script>
-  <script src="js/password-toggle.js?v=17"></script>
-  <script src="js/admin-pricing.js?v=17"></script>
+  <script src="js/pricing-math.js?v=18"></script>
+  <script src="js/password-toggle.js?v=18"></script>
+  <script src="js/admin-pricing.js?v=18"></script>
+  <script src="js/admin-scroll.js?v=18"></script>
 </body>
 </html>

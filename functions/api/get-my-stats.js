@@ -25,6 +25,8 @@
  *
  * Codes are uppercased to match how they are stored at approval.
  *
+ * Throttled to 60 lookups per IP per 10 minutes (429 beyond that).
+ *
  * Known limitation (documented in the README): because this needs no
  * password, anyone who guesses or is told a code can see that code's
  * totals. It exposes no names, emails or customer data, but keep codes
@@ -32,6 +34,7 @@
  */
 
 import { currentCommissionRate } from "../_lib/pricing.js";
+import { rateLimit, CLIENT_IP } from "../_lib/identity.js";
 
 const COMMISSION_RATE = 0.08;   // only for a legacy record that stored neither an amount nor a rate
 const CODE_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
@@ -55,6 +58,14 @@ async function handle(request, env) {
         "REFERRALS_KV is not bound. Create a KV namespace named REFERRALS_KV and bind it " +
         "to this Pages project under Settings → Functions → KV namespace bindings."
     }, 503);
+  }
+
+  // Public and unauthenticated, so it is throttled per IP: a script cannot cheaply walk through guessable codes.
+  const limit = await rateLimit(env.REFERRALS_KV, `rl:stats:${CLIENT_IP(request)}`, 60, 600);
+  if (!limit.allowed) {
+    const res = json({ ok: false, error: "Too many lookups. Please wait a few minutes and try again." }, 429);
+    res.headers.set("Retry-After", String(limit.retryAfterSec));
+    return res;
   }
 
   let rawCode = new URL(request.url).searchParams.get("code") || "";

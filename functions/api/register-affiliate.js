@@ -29,6 +29,7 @@
  * guarantee.
  */
 
+import { adminDenied } from "../_lib/admin-auth.js";
 import { getJson } from "../_lib/payouts.js";
 import { normaliseEmail, normalisePhoneIntl } from "../_lib/identity.js";
 import { affiliateMetadata, idxEmailKey, idxPhoneKey, liveOwner } from "../_lib/signup.js";
@@ -83,10 +84,9 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: "Body must be valid JSON." }, 400);
   }
 
-  const supplied = typeof body.password === "string" ? body.password : "";
-  if (!timingSafeEqual(supplied, env.ADMIN_REPORT_PASSWORD)) {
-    return json({ ok: false, error: "Incorrect password." }, 401);
-  }
+  // Constant-time password check, with a lockout after repeated failures from one IP.
+  const denied = await adminDenied(request, env, body);
+  if (denied) return denied;
 
   const rawCode = typeof body.code === "string" ? body.code.trim() : "";
   if (!CODE_PATTERN.test(rawCode)) {
