@@ -17,6 +17,7 @@
  * Rates are fractions (0.08 = 8%). Prices are whole naira. See _lib/pricing.js for the rules.
  */
 import { adminDenied } from "../_lib/admin-auth.js";
+import { writeAudit } from "../_lib/audit.js";
 import { loadCurrent, getSnapshot, validateSave, diffConfigs, writeNewVersion, listVersions, cloneConfig } from "../_lib/pricing.js";
 
 const HISTORY_MAX = 50;
@@ -52,8 +53,8 @@ export async function onRequestPost(context) {
   try { body = await request.json(); } catch (err) { return json({ ok: false, error: "Body must be valid JSON." }, 400); }
   if (!body || typeof body !== "object") return json({ ok: false, error: "Body must be a JSON object." }, 400);
   // Constant-time password check, with a lockout after repeated failures from one IP.
-  const denied = await adminDenied(request, env, body);
-  if (denied) return denied;
+  const auth = await adminDenied(request, env, body);
+  if (auth instanceof Response) return auth;
 
   const action = body.action;
   try {
@@ -86,8 +87,11 @@ export async function onRequestPost(context) {
       }
       const checked = validateSave(body, current);
       if (!checked.ok) return json({ ok: false, error: checked.error }, 400);
+      checked.config.changed_by = auth.email;
       const snapshot = await writeNewVersion(kv, checked.config, new Date(Date.now()).toISOString());
-      return json({ ok: true, version: snapshot.version, config: snapshot, changes: diffConfigs(current, snapshot) });
+      const changes = diffConfigs(current, snapshot);
+      await writeAudit(env, auth, "pricing.save", `Saved pricing version ${snapshot.version}: ${changes.join("; ") || "no visible changes"}`);
+      return json({ ok: true, version: snapshot.version, config: snapshot, changes });
     }
 
     if (action === "revert_to") {
@@ -111,8 +115,11 @@ export async function onRequestPost(context) {
       const checked = validateSave(asInput, current);
       if (!checked.ok) return json({ ok: false, error: /Nothing has changed/.test(checked.error) ? `Version ${old.version} is identical to the current prices, so there is nothing to revert.` : checked.error }, 400);
       checked.config.reverted_from = old.version;
+      checked.config.changed_by = auth.email;
       const snapshot = await writeNewVersion(kv, checked.config, new Date(Date.now()).toISOString());
-      return json({ ok: true, version: snapshot.version, reverted_from: old.version, config: snapshot, changes: diffConfigs(current, snapshot) });
+      const changes = diffConfigs(current, snapshot);
+      await writeAudit(env, auth, "pricing.revert", `Reverted to version ${old.version}, saved as version ${snapshot.version}: ${changes.join("; ") || "no visible changes"}`);
+      return json({ ok: true, version: snapshot.version, reverted_from: old.version, config: snapshot, changes });
     }
   } catch (err) {
     return json({ ok: false, error: "Could not read or write the pricing records." }, 500);

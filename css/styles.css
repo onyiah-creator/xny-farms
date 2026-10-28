@@ -988,6 +988,19 @@ html[data-focus-product] .product-group.is-focus-group .grid--2 {
 .pr-log__item .badge { margin: 0; padding: .12rem .5rem; font-size: .66rem; }
 @media (max-width: 560px) { .pr-card { padding: 1rem; } .pr-fields { grid-template-columns: minmax(0, 1fr); } }
 
+/* Admin: Cloudflare Access protection banner (js/admin-common.js) and the activity log (js/admin-hub.js) */
+.access-banner { margin: 0 0 1.2rem; padding: .65rem .9rem; border-radius: var(--radius-sm); font-size: .93rem; font-weight: 600; overflow-wrap: anywhere; }
+.access-banner[hidden] { display: none; }
+.access-banner--ok { background: var(--green-100); color: var(--green-900); border: 1px solid var(--green-700); }
+.access-banner--warn { background: #fff4d6; color: #6b4a00; border: 1px solid #e0b64a; }
+.audit-list { list-style: none; margin: 1rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .6rem; }
+.audit-item { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: .7rem .9rem; min-width: 0; }
+.audit-item__top { display: flex; flex-wrap: wrap; gap: .2rem .7rem; align-items: baseline; }
+.audit-item__when { font-size: .85rem; color: var(--muted); }
+.audit-item .badge { margin: 0; padding: .12rem .5rem; font-size: .66rem; }
+.audit-item__summary { margin-top: .25rem; overflow-wrap: anywhere; }
+.audit-item__who { margin-top: .2rem; font-size: .82rem; color: var(--muted); overflow-wrap: anywhere; }
+
 /* Admin: floating scroll buttons (js/admin-scroll.js). Stacked bottom-right; above the sticky save bar when there is one. */
 .admin-jump {
   position: fixed; right: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom, 0px));

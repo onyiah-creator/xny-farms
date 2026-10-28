@@ -290,8 +290,8 @@ export async function onRequestPost(context) {
   }
 
   // Constant-time password check, with a lockout after repeated failures from one IP.
-  const denied = await adminDenied(request, env, body);
-  if (denied) return denied;
+  const auth = await adminDenied(request, env, body);
+  if (auth instanceof Response) return auth;
 
   // Detail for one affiliate (the expanded row).
   if (body.code !== undefined) {

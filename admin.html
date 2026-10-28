@@ -9,7 +9,7 @@
   <meta name="robots" content="noindex, nofollow, noarchive" />
   <link rel="icon" href="assets/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
-  <link rel="stylesheet" href="css/styles.css?v=18" />
+  <link rel="stylesheet" href="css/styles.css?v=19" />
 </head>
 <body>
 
@@ -34,6 +34,8 @@
   <section class="section section--white">
     <div class="container admin-wrap">
 
+      <div id="access-banner" class="access-banner no-print" role="status" hidden></div>
+
       <div class="grid grid--2">
         <a class="admin-tile" href="admin-referrals.html">
           <h2>Referral &amp; Payout Report</h2>
@@ -54,6 +56,31 @@
         </a>
       </div>
 
+      <!-- Activity log: password-gated like every admin endpoint -->
+      <h2 class="pr-h" style="margin-top:2.2rem">Activity log</h2>
+      <div class="form-card" id="hub-gate">
+        <p class="form-note" style="margin-top:0">Who changed what, and when: pricing changes, payouts, affiliate changes and lockouts. Sign in to see it.</p>
+        <form id="hub-form">
+          <div class="field">
+            <label for="hub-password">Report password <span class="req">*</span></label>
+            <input id="hub-password" name="password" type="password" required autocomplete="current-password" />
+          </div>
+          <div style="margin-top:1.1rem">
+            <button type="submit" class="btn btn--green" id="hub-signin">Show activity</button>
+          </div>
+          <p id="hub-status" class="form-status" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+      <div id="hub-activity" hidden>
+        <div class="admin-meta">
+          <p class="form-note" style="margin:0" id="hub-count">&mdash;</p>
+          <button type="button" class="btn btn--outline btn--sm" id="hub-refresh">Refresh</button>
+        </div>
+        <p id="hub-error" class="form-status" role="status" aria-live="polite"></p>
+        <p class="form-note" id="hub-empty" hidden>Nothing recorded yet.</p>
+        <ul class="audit-list" id="audit-list"></ul>
+      </div>
+
       <p class="form-note" style="margin-top:1.6rem">
         This hub holds no data of its own &mdash; each tool above asks for the report
         password when you open it. This page isn&rsquo;t linked from anywhere on the public
@@ -69,6 +96,9 @@
     </div>
   </section>
 
-  <script src="js/admin-scroll.js?v=18"></script>
+  <script src="js/password-toggle.js?v=19"></script>
+  <script src="js/admin-common.js?v=19"></script>
+  <script src="js/admin-hub.js?v=19"></script>
+  <script src="js/admin-scroll.js?v=19"></script>
 </body>
 </html>

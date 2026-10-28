@@ -46,10 +46,7 @@
     var body = payload || {};
     body.password = password;
     body.action = action;
-    return window.fetch(ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
-      .then(function (res) {
-        return res.json().catch(function () { return {}; }).then(function (data) { return { status: res.status, data: data }; });
-      });
+    return window.XNYAdmin.request(ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   }
 
   function dateText(iso) {
@@ -563,11 +560,11 @@
         renderLog();
         return;
       }
-      setText(els.gateStatus, r.data.error || "Could not load pricing.", "error");
+      setText(els.main.hidden ? els.gateStatus : els.notice, r.data.error || "Could not load pricing.", "error");   // signed in already: the gate is hidden, so say it up top
       if (els.main.hidden) password = "";
     }).catch(function () {
       els.signin.disabled = false;
-      setText(els.gateStatus, "Could not reach the pricing service.", "error");
+      setText(els.main.hidden ? els.gateStatus : els.notice, "Could not reach the pricing service.", "error");
     });
   }
 

@@ -22,6 +22,7 @@
  * it picks up where it left off.
  */
 import { adminDenied } from "../_lib/admin-auth.js";
+import { writeAudit } from "../_lib/audit.js";
 import { loadAffiliates, resolvePayoutDetails } from "../_lib/payouts.js";
 import { normaliseEmail, normalisePhoneIntl, nowIso } from "../_lib/identity.js";
 import { idxEmailKey, idxPhoneKey, liveOwner } from "../_lib/signup.js";
@@ -56,8 +57,8 @@ export async function onRequestPost(context) {
   try { body = await request.json(); } catch (err) { return json({ ok: false, error: "Body must be valid JSON." }, 400); }
   if (!body || typeof body !== "object") return json({ ok: false, error: "Body must be a JSON object." }, 400);
   // Constant-time password check, with a lockout after repeated failures from one IP.
-  const denied = await adminDenied(request, env, body);
-  if (denied) return denied;
+  const auth = await adminDenied(request, env, body);
+  if (auth instanceof Response) return auth;
 
   let affiliates;
   let details;
@@ -116,8 +117,11 @@ export async function onRequestPost(context) {
       await index("phone", idxPhoneKey(phone.phone), maskPhone(phone.phone), aff);
     }
   } catch (err) {
+    await writeAudit(env, auth, "index.rebuild_failed", `Duplicate index rebuild stopped part-way (${result.indexed_email} email and ${result.indexed_phone} phone entries added so far)`);
     return json({ ok: false, error: "Stopped part-way (KV error). Run it again to continue.", ...result }, 500);
   }
 
+  await writeAudit(env, auth, "index.rebuilt",
+    `Rebuilt the duplicate index for ${result.affiliates} affiliates: ${result.indexed_email} email and ${result.indexed_phone} phone entries added, ${result.conflicts.length} conflict${result.conflicts.length === 1 ? "" : "s"}`);
   return json({ ok: true, ...result });
 }

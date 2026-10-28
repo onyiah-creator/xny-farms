@@ -30,6 +30,7 @@
  */
 
 import { adminDenied } from "../_lib/admin-auth.js";
+import { writeAudit } from "../_lib/audit.js";
 import { getJson } from "../_lib/payouts.js";
 import { normaliseEmail, normalisePhoneIntl } from "../_lib/identity.js";
 import { affiliateMetadata, idxEmailKey, idxPhoneKey, liveOwner } from "../_lib/signup.js";
@@ -85,8 +86,8 @@ export async function onRequestPost(context) {
   }
 
   // Constant-time password check, with a lockout after repeated failures from one IP.
-  const denied = await adminDenied(request, env, body);
-  if (denied) return denied;
+  const auth = await adminDenied(request, env, body);
+  if (auth instanceof Response) return auth;
 
   const rawCode = typeof body.code === "string" ? body.code.trim() : "";
   if (!CODE_PATTERN.test(rawCode)) {
@@ -152,6 +153,7 @@ export async function onRequestPost(context) {
   } catch (err) {
     return json({ ok: false, error: "Could not save the affiliate record." }, 500);
   }
+  await writeAudit(env, auth, "affiliate.registered", `Registered affiliate ${code} (${name})${validApplicationKey ? " from an application" : ""}`);
 
   /* If this approval came from a pending application, mark that
      application approved so it drops off the pending list and can't be

@@ -993,7 +993,7 @@ one is named in any browser-served file.
   Make one small real payment after setting the variables, and confirm you receive the "New Order" email.
 - Until `FLW_SECRET_KEY` is set, checkout is **disabled** (503), by design.
 - `my-stats.html` is public to anyone who knows an affiliate's code (totals only, no personal data).
-- The admin area is protected by one shared password: make it long and unique. The lockout is per IP.
+- The admin area is protected by one shared password plus, once you switch it on, Cloudflare Access (section 9). Make the password long and unique. The lockout is per IP.
 - A full CSP (restricting scripts to known hosts) is a sensible next step once it can be tested against live
   Flutterwave and Turnstile.
 - Customer name, email, phone and delivery address are stored on the order in KV (pending orders expire after
@@ -1007,3 +1007,105 @@ pricing page a **sticky bar** stays at the bottom of the screen showing "N unsav
 change**, **Discard** and **Review & save**. Review & save opens over the page (no scrolling): it lists exactly
 what will change, shows a warning you must tick if any price is below the recommendation, takes the note, and
 saves. The browser also warns before you leave the page with unsaved edits.
+
+---
+
+## 9. Admin protection: Cloudflare Access, the password, and the audit log
+
+Three layers guard the admin pages and the admin APIs (`admin-pricing`, `get-affiliates`,
+`get-pending-applications`, `get-referrals`, `rebuild-index`, `record-payout`, `register-affiliate`,
+`send-affiliate-email`, `set-affiliate-status`, plus `admin-status` and `get-audit-log`):
+
+1. **Cloudflare Access** (outer door). An Access application puts a login (your email, a one-time code or your
+   identity provider) in front of the admin pages and APIs. Cloudflare then adds a signed token, the
+   `Cf-Access-Jwt-Assertion` header, to every request that gets through.
+2. **The server checks that token** (`functions/_lib/admin-auth.js`), so it still works if someone reaches the
+   API some other way (the `*.pages.dev` address, a script). RS256 only (`none`, HS256 and everything else are
+   refused), signature checked against Cloudflare's published keys (cached 10 minutes; one refetch on an unknown key
+   id, at most every 30 seconds), `iss`, `aud`, `exp` and `nbf` (30 seconds of clock leeway) and an `email` claim.
+   A token with no email (a service token) is not accepted as an admin.
+3. **The admin password**, with the existing lockout (10 wrong attempts per IP in 15 minutes).
+
+When Access is enforced, a request needs **both** a valid token and the password. The token is checked first, so a
+caller outside Access gets `403` and can't even use the password lockout.
+
+### Environment variables (Pages -> Settings -> Environment variables)
+
+| Variable | Value |
+| --- | --- |
+| `CF_ACCESS_TEAM_DOMAIN` | Your Zero Trust team domain, e.g. `yourteam.cloudflareaccess.com` (Zero Trust -> Settings -> General). |
+| `CF_ACCESS_AUD` | The **Application Audience (AUD) tag** of the Access application you create below. |
+| `ACCESS_ENFORCE` | `true` to require Access. **Exactly `true`**: anything else (empty, `True`, `1`, `false`, unset) means not enforced. Never inferred from the hostname. |
+
+If `ACCESS_ENFORCE` is `true` but the team domain or audience is missing or invalid, the keys can't be fetched, or the
+token is missing or bad, every admin endpoint answers **403** (it fails closed). When it is not `true`, nothing changes
+for you, except that a valid token, if one is present, is still verified and used: its email goes into the audit log.
+
+### Setting up the Access application
+
+Zero Trust -> Access -> Applications -> Add -> Self-hosted, with an Allow policy for the people who may use the admin
+tools (specific emails). Add these as the application's destinations on `xnyfarms.com`:
+
+```
+/admin.html  /admin-referrals.html  /admin-pricing.html  /admin-approve-affiliate.html
+/api/admin-pricing  /api/admin-status  /api/get-affiliates  /api/get-pending-applications  /api/get-referrals
+/api/get-audit-log  /api/rebuild-index  /api/record-payout  /api/register-affiliate
+/api/send-affiliate-email  /api/set-affiliate-status
+```
+
+**Do not protect `/api/*` as a whole or the whole site.** These must stay open to everyone, with no Access login:
+`create-order`, `verify-order`, `flutterwave-webhook` (Flutterwave can't log in), `pricing`, `log-referral`,
+`get-my-stats`, `submit-affiliate-application`, `verify-affiliate`, `resend-confirmation`, `resend-welcome`. Their
+tests run with enforcement on and no token (`tests/admin-access.test.mjs`).
+
+Set `ACCESS_ENFORCE` for the **Production** environment only. A preview deployment on another hostname isn't covered
+by the Access application, so enforcing there would just lock you out of the admin tools on previews.
+
+### Rolling it out safely
+
+1. **Deploy** this code. `ACCESS_ENFORCE` is unset, so nothing changes. The admin pages show an amber banner
+   "Cloudflare Access is not enforced".
+2. **Create the Access application and set `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD`**, then redeploy. Still not
+   enforced. Open an admin page (you now pass through the Access login first), sign in, and read the banner: it should say
+   "You are signed in through Access as <your email>, but the server does not require it yet". That proves the
+   token is being verified. Make a harmless change (or look at the activity log) and check your email is recorded.
+3. **Set `ACCESS_ENFORCE` to `true` and redeploy.** The banner turns green: "Protected by Cloudflare Access as <you>".
+4. **Test the closed door.** From a private window or `curl`, `POST https://xnyfarms.com/api/get-referrals` with the
+   right password and no Access login must not return data. Then check the public site still works: browse, add to
+   cart, and start a checkout.
+
+### Break-glass: Access is down, or you are locked out
+
+Set `ACCESS_ENFORCE` to anything other than `true` (or delete it) and **redeploy**: the admin tools go back to
+password-only, with the lockout still in force. Nothing else needs to change. During a Cloudflare Access outage the
+admin endpoints answer 403 (they fail closed); the public site, checkout and webhook are unaffected. Turn
+enforcement back on once Access is healthy.
+
+### Session expiry
+
+If the Access session lapses while an admin page is open, the next request is redirected to the Access login (or
+returns a page that isn't JSON). The admin pages catch that and show **"Your session expired. Reload this page to
+sign in again."** instead of a JSON error. An unsaved pricing edit stays on screen until you reload.
+
+### The activity log (audit trail)
+
+Every sensitive admin action writes `audit:{ISO time}-{id}` to KV: `{ at, actor_email, actor_ip, action, summary }`,
+kept for **400 days**. `actor_email` is the verified Access email, or `password-only`. Recorded: pricing save and
+revert, payout recorded / deleted / receipt resent, affiliate registered / suspended / reactivated, welcome email
+resent, index rebuild, and admin lockouts (once per lockout). Payout records now carry `recorded_by` and pricing
+versions `changed_by` (admin only; the public pricing API never shows them). It is shown on **`admin.html`** under
+*Activity log* (newest 200), read from `/api/get-audit-log`.
+
+A summary is plain words built from safe values: amounts, codes, affiliate names, version numbers. It never contains
+a password, a wrong guess, an account number, a payout reference or note, an affiliate's email or phone, a token or a
+request body (the tests check this). Writing an entry is best effort: if KV hiccups, the action still goes through.
+
+### Headers on admin pages and APIs
+
+The four admin pages get `Cache-Control: no-store`, `X-Frame-Options: DENY`, CSP `frame-ancestors 'none'`,
+`Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff` and the existing noindex, via `_headers` (the `!` lines
+detach the site-wide values first, because Cloudflare joins duplicate headers with a comma). The admin **API** responses
+get the same set from `functions/api/_middleware.js`, since `_headers` is not applied to Functions responses.
+
+Run the tests with `node tests/admin-access.test.mjs` (real RSA signatures with a mocked keys endpoint) and the
+browser suite for the banner, the expired-session message and the activity log.

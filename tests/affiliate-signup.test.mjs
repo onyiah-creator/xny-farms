@@ -539,9 +539,10 @@ console.log('\n=== rebuild duplicate index ===');
   check('exactly those two conflicts', r.j.conflicts.length === 2);
   const snapshotAfter = [...k14._s.keys()].filter(k => k.startsWith('affiliate:')).map(k => k + '=' + k14._s.get(k).value + '|' + JSON.stringify(k14._s.get(k).metadata)).join('\n');
   check('no affiliate record (or its metadata) was changed', snapshot === snapshotAfter);
-  const writesBefore = [...k14._s.keys()].length;
+  const dataKeys = () => [...k14._s.keys()].filter(k => !k.startsWith('audit:')).length;   // the audit log gains an entry per run
+  const writesBefore = dataKeys();
   r = await call(rebuildIndex, { password: PW }, {}, e14);
-  check('running it again is safe: nothing new indexed, the same conflicts, key count unchanged', r.j.indexed_email === 0 && r.j.indexed_phone === 0 && r.j.already_indexed_email === 7 && r.j.already_indexed_phone === 2 && r.j.conflicts.length === 2 && [...k14._s.keys()].length === writesBefore, JSON.stringify(r.j));
+  check('running it again is safe: nothing new indexed, the same conflicts, key count unchanged', r.j.indexed_email === 0 && r.j.indexed_phone === 0 && r.j.already_indexed_email === 7 && r.j.already_indexed_phone === 2 && r.j.conflicts.length === 2 && dataKeys() === writesBefore, JSON.stringify(r.j));
   // protection works afterwards
   mails = [];
   let rr = await signup({ request: req(form({ name: 'Newcomer', email: 'one@example.com', phone: '0805 123 9999' })), env: e14, waitUntil() {} }); let jj = await rr.json();

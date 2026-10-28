@@ -12,6 +12,7 @@
  * -> { ok: true, code, status, changed }
  */
 import { adminDenied } from "../_lib/admin-auth.js";
+import { writeAudit } from "../_lib/audit.js";
 import { getJson } from "../_lib/payouts.js";
 import { affiliateMetadata } from "../_lib/signup.js";
 import { nowIso } from "../_lib/identity.js";
@@ -44,8 +45,8 @@ export async function onRequestPost(context) {
   try { body = await request.json(); } catch (err) { return json({ ok: false, error: "Body must be valid JSON." }, 400); }
   if (!body || typeof body !== "object") return json({ ok: false, error: "Body must be a JSON object." }, 400);
   // Constant-time password check, with a lockout after repeated failures from one IP.
-  const denied = await adminDenied(request, env, body);
-  if (denied) return denied;
+  const auth = await adminDenied(request, env, body);
+  if (auth instanceof Response) return auth;
 
   const rawCode = typeof body.code === "string" ? body.code.trim() : "";
   if (!CODE_PATTERN.test(rawCode)) return json({ ok: false, error: "Invalid code." }, 400);
@@ -69,6 +70,10 @@ export async function onRequestPost(context) {
     await env.REFERRALS_KV.put(`affiliate:${code}`, JSON.stringify(record), { metadata: affiliateMetadata(record) });
   } catch (err) {
     return json({ ok: false, error: "Could not update the affiliate." }, 500);
+  }
+  if (changed) {
+    await writeAudit(env, auth, body.status === "suspended" ? "affiliate.suspended" : "affiliate.reactivated",
+      `${body.status === "suspended" ? "Suspended" : "Reactivated"} ${code}${record.name ? " (" + record.name + ")" : ""}`);
   }
   return json({ ok: true, code, status: body.status, changed });
 }

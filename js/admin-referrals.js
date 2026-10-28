@@ -77,14 +77,10 @@
 
   function post(url, payload) {
     payload.password = state.password;
-    return window.fetch(url, {
+    return window.XNYAdmin.request(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
-    }).then(function (res) {
-      return res.json().catch(function () { return {}; }).then(function (data) {
-        return { status: res.status, data: data };
-      });
     });
   }
 

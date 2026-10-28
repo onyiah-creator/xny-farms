@@ -15,6 +15,7 @@ import { startHarness } from "./harness.mjs";
 import passwordToggle from "./password-toggle.mjs";
 import signupFlow from "./signup-flow.mjs";
 import pricingFlow from "./pricing-flow.mjs";
+import adminAccessFlow from "./admin-access-flow.mjs";
 
 const require = createRequire(import.meta.url);
 function loadPlaywright() {
@@ -38,6 +39,8 @@ try {
   await signupFlow(ctx);
   console.log("\n=== pricing: admin page, storefront, cart, checkout ===");
   await pricingFlow(ctx);
+  console.log("\n=== admin: Cloudflare Access banner, expired sessions, activity log ===");
+  await adminAccessFlow(ctx);
 } finally {
   await browser.close();
   await harness.close();

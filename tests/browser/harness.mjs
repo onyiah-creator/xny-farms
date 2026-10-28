@@ -34,10 +34,12 @@ export async function startHarness(port) {
   const mails = [];
   let delayMs = 0;
   let pricingFail = false;
+  let jwksBody = { keys: [] };   // what the mocked Cloudflare Access certs endpoint serves
   let flwMode = "none";   // what the mocked Flutterwave says about any tx_ref: none | pay | short
 
   globalThis.fetch = async (url, init) => {
     if (String(url).startsWith("https://challenges.cloudflare.com/")) return new Response(JSON.stringify({ success: true }), { status: 200 });
+    if (/^https:\/\/[a-z0-9.-]+\.cloudflareaccess\.com\/cdn-cgi\/access\/certs$/.test(String(url))) return new Response(JSON.stringify(jwksBody), { status: 200 });
     if (String(url).startsWith("https://api.flutterwave.com/v3/transactions/verify_by_reference")) {
       const txRef = new URL(String(url)).searchParams.get("tx_ref");
       const raw = await kv.get("order:" + txRef);
@@ -66,6 +68,7 @@ export async function startHarness(port) {
       for await (const c of req) chunks.push(c);
       const headers = new Headers();
       headers.set("CF-Connecting-IP", String(req.headers["x-test-ip"] || "127.0.0.1"));
+      if (req.headers["cf-access-jwt-assertion"]) headers.set("Cf-Access-Jwt-Assertion", String(req.headers["cf-access-jwt-assertion"]));
       const request = new Request(`http://${req.headers.host}` + req.url, { method: req.method, headers, body: ["GET", "HEAD"].includes(req.method) ? undefined : Buffer.concat(chunks) });
       if (m[1] === "pricing" && pricingFail) { res.writeHead(503, { "Content-Type": "application/json", "Cache-Control": "no-store" }); res.end(JSON.stringify({ ok: false, error: "Pricing is temporarily unavailable." })); return; }
       const mod = await load(m[1]);
@@ -92,5 +95,5 @@ export async function startHarness(port) {
     });
   });
   await new Promise((resolve) => server.listen(port, resolve));
-  return { server, base: `http://localhost:${port}`, kv, env, mails, close: () => new Promise((r) => server.close(r)) };
+  return { server, base: `http://localhost:${port}`, kv, env, mails, setJwks: (doc) => { jwksBody = doc; }, close: () => new Promise((r) => server.close(r)) };
 }

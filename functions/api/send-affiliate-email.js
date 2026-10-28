@@ -37,6 +37,7 @@
  */
 
 import { adminDenied } from "../_lib/admin-auth.js";
+import { writeAudit } from "../_lib/audit.js";
 import math from "../../js/pricing-math.js";
 import { currentCommissionRate } from "../_lib/pricing.js";
 import { SITE_URL, X_URL, BUTTON_TEXT, esc, button, signatureRow, sendViaResend } from "../_lib/email.js";
@@ -231,8 +232,8 @@ export async function onRequestPost(context) {
   }
 
   // Constant-time password check, with a lockout after repeated failures from one IP.
-  const denied = await adminDenied(request, env, body);
-  if (denied) return denied;
+  const auth = await adminDenied(request, env, body);
+  if (auth instanceof Response) return auth;
 
   const rawCode = typeof body.code === "string" ? body.code.trim() : "";
   if (!CODE_PATTERN.test(rawCode)) {
@@ -278,5 +279,6 @@ export async function onRequestPost(context) {
     );
   }
 
+  await writeAudit(env, auth, "affiliate.welcome_resent", `Sent the welcome email to affiliate ${code}${record.name ? " (" + record.name + ")" : ""}`);
   return json({ ok: true, sent_to: email, id: sent.id });
 }

@@ -21,22 +21,51 @@
 /js/*
   Cache-Control: public, max-age=300, must-revalidate
 
-# Admin pages: never cached (by a browser, a shared computer or an edge), and kept out of search indexes.
+# Admin pages: never cached (by a browser, a shared computer or an edge), kept out of search indexes, never
+# framed, and never leaking their URL. The "!" lines detach the site-wide value first: without them Cloudflare
+# JOINS both values with a comma ("SAMEORIGIN, DENY"), which browsers treat as invalid.
+# (The admin API responses get the same headers from functions/api/_middleware.js, because _headers is not
+# applied to Functions responses.) X-Content-Type-Options: nosniff comes from the site-wide rule above.
 # Internal referral report — keep it out of search indexes entirely.
 # (admin-referrals.html also carries a noindex meta tag.)
 /admin-referrals.html
   X-Robots-Tag: noindex, nofollow, noarchive
   Cache-Control: no-store
+  ! X-Frame-Options
+  ! Referrer-Policy
+  ! Content-Security-Policy
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Content-Security-Policy: object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
 /admin-pricing.html
   X-Robots-Tag: noindex, nofollow, noarchive
   Cache-Control: no-store
+  ! X-Frame-Options
+  ! Referrer-Policy
+  ! Content-Security-Policy
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Content-Security-Policy: object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
 /admin-approve-affiliate.html
   X-Robots-Tag: noindex, nofollow, noarchive
   Cache-Control: no-store
+  ! X-Frame-Options
+  ! Referrer-Policy
+  ! Content-Security-Policy
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Content-Security-Policy: object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
 /admin.html
   X-Robots-Tag: noindex, nofollow, noarchive
   Cache-Control: no-store
+  ! X-Frame-Options
+  ! Referrer-Policy
+  ! Content-Security-Policy
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Content-Security-Policy: object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
 /affiliate-confirmed.html
   X-Robots-Tag: noindex, nofollow, noarchive
   Cache-Control: no-store
+  ! Referrer-Policy
   Referrer-Policy: no-referrer

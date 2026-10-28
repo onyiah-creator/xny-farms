@@ -139,6 +139,7 @@ export function validateSave(input, base) {
   if (!input || typeof input !== "object") return { ok: false, error: "Nothing to save." };
   const next = cloneConfig(base);
   delete next.reverted_from;
+  delete next.changed_by;
 
   if (input.products !== undefined) {
     if (!input.products || typeof input.products !== "object" || Array.isArray(input.products)) return { ok: false, error: "products must be an object." };
@@ -274,6 +275,7 @@ export async function listVersions(kv, limit = 50) {
       created_at: snap.created_at,
       note: snap.note || "",
       reverted_from: snap.reverted_from || null,
+      changed_by: snap.changed_by || null,
       changes: prev ? diffConfigs(prev, snap) : ["First saved version"]
     });
   }

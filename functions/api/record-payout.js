@@ -40,6 +40,7 @@
  */
 
 import { adminDenied } from "../_lib/admin-auth.js";
+import { writeAudit } from "../_lib/audit.js";
 import { sendPayoutReceipt } from "../_lib/receipt.js";
 
 const CODE_PATTERN = /^[A-Za-z0-9]{3,32}$/;
@@ -126,8 +127,8 @@ export async function onRequestPost(context) {
   }
 
   // Constant-time password check, with a lockout after repeated failures from one IP.
-  const denied = await adminDenied(request, env, body);
-  if (denied) return denied;
+  const auth = await adminDenied(request, env, body);
+  if (auth instanceof Response) return auth;
 
   if (body.delete_key !== undefined && body.payout_key !== undefined) {
     return json({ ok: false, error: "Send either delete_key or payout_key, not both." }, 400);
@@ -144,6 +145,7 @@ export async function onRequestPost(context) {
     const result = await sendPayoutReceipt(env, key);
     if (result.missing) return json({ ok: false, notified: false, error: result.error }, 404);
     if (!result.ok) return json({ ok: false, notified: false, error: result.error }, 502);
+    await writeAudit(env, auth, "payout.receipt_resent", `Resent the receipt for ${key}`);
     return json({ ok: true, notified: true });
   }
 
@@ -165,6 +167,7 @@ export async function onRequestPost(context) {
     } catch (err) {
       return json({ ok: false, error: "Could not delete the payout record." }, 500);
     }
+    await writeAudit(env, auth, "payout.deleted", `Deleted payout record ${key}`);
     return json({ ok: true, deleted: key });
   }
 
@@ -221,7 +224,8 @@ export async function onRequestPost(context) {
     paid_on: paidOn,
     reference,
     note,
-    recorded_at: recordedAt
+    recorded_at: recordedAt,
+    recorded_by: auth.email
   };
 
   try {
@@ -247,5 +251,7 @@ export async function onRequestPost(context) {
     answer.notified = result.ok === true;
     if (!result.ok) answer.error = result.error;
   }
+  await writeAudit(env, auth, "payout.recorded",
+    `Recorded a payout of ₦${amountNgn.toLocaleString("en-NG")} to ${code}, paid on ${paidOn}${emailRequested ? (answer.notified ? "; receipt emailed" : "; receipt email failed") : ""}`);
   return json(answer);
 }
